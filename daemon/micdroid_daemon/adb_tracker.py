@@ -190,6 +190,26 @@ async def adb_connect(adb_path: str, address: str, timeout: float = 10.0) -> tup
     return text.lower().startswith("connected"), text
 
 
+async def adb_pair(adb_path: str, address: str, code: str, timeout: float = 15.0) -> tuple[bool, str]:
+    """`adb pair HOST:PORT CODE` - passing the code as a positional arg (vs.
+    omitting it) avoids adb's interactive "Enter pairing code:" stdin prompt,
+    which we have no good way to answer from a subprocess pipe otherwise.
+    Success is "Successfully paired to ..." on stdout; failures include a
+    wrong code, or the pairing dialog on the phone having already timed out
+    (the code/port shown there are single-use and short-lived).
+    """
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            adb_path, "pair", address, code,
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        return False, f"timed out pairing with {address}"
+    text = stdout.decode(errors="replace").strip() or stderr.decode(errors="replace").strip()
+    return text.lower().startswith("successfully paired"), text
+
+
 async def adb_disconnect(adb_path: str, serial: str) -> None:
     proc = await asyncio.create_subprocess_exec(
         adb_path, "disconnect", serial,
@@ -266,3 +286,29 @@ async def resolve_ip_via_avahi(service_type: str = "_adb-tls-connect._tcp",
         address, port = fields[7], fields[8]
         candidates.append(f"{address}:{port}")
     return candidates
+
+
+async def find_and_connect_after_pairing(adb_path: str, host: str,
+                                          attempts: int = 6, interval: float = 1.5) -> tuple[bool, str]:
+    """After a successful `adb pair`, the *connect* port (different from the
+    pairing port) isn't known yet - only mDNS discovery
+    (`_adb-tls-connect._tcp`) or the user manually reading it off the phone's
+    Wireless debugging screen can find it. Polls Avahi a few times (the
+    advertisement can take a moment to appear) and tries `adb connect`
+    against any candidate on the same host we just paired with.
+
+    Returns (True, "ip:port") on success, or (False, "") if nothing showed
+    up within the attempt budget - the caller should fall back to asking the
+    user for the connect address manually (the widget's existing "Connect by
+    address" field already covers that).
+    """
+    for _ in range(attempts):
+        candidates = await resolve_ip_via_avahi()
+        for candidate in candidates:
+            if candidate.split(":", 1)[0] != host:
+                continue
+            ok, _ = await adb_connect(adb_path, candidate)
+            if ok:
+                return True, candidate
+        await asyncio.sleep(interval)
+    return False, ""

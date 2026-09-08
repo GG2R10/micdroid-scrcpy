@@ -237,6 +237,24 @@ PlasmoidItem {
         })
     }
 
+    function pairDevice(host, pairPort, code, onDone) {
+        const cmd = codePath("daemonctl.sh") + " Pair "
+            + shQuote(host) + " " + shQuote(pairPort) + " " + shQuote(code)
+        control.run(cmd, function (ok, stdout) {
+            let paired = false, connected = false, message = ""
+            if (ok) {
+                const parts = parseGdbusTuple(stdout)
+                paired = !!parts[0]
+                connected = !!parts[1]
+                message = parts[2] || ""
+                if (connected) refreshDevices()
+            } else {
+                message = root.lastError
+            }
+            if (onDone) onDone(paired, connected, message)
+        })
+    }
+
     function retryDevice(serial) {
         control.run(codePath("daemonctl.sh") + " Connect " + shQuote(serial))
     }

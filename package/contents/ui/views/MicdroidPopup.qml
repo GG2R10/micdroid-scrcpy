@@ -11,6 +11,8 @@ ColumnLayout {
     Layout.margins: Kirigami.Units.smallSpacing
     spacing: Kirigami.Units.smallSpacing
 
+    property bool showPairing: false
+
     RowLayout {
         Layout.fillWidth: true
         Kirigami.Heading {
@@ -40,6 +42,7 @@ ColumnLayout {
         sourceComponent: {
             if (!micdroid || !micdroid.serviceRunning) return serviceUnavailableComponent
             if (!micdroid.dependenciesOk) return dependencyWarningComponent
+            if (popup.showPairing) return pairingComponent
             return deviceListComponent
         }
     }
@@ -54,6 +57,16 @@ ColumnLayout {
     }
     Component {
         id: deviceListComponent
-        DeviceListView { micdroid: popup.micdroid }
+        DeviceListView {
+            micdroid: popup.micdroid
+            onPairNewDevice: popup.showPairing = true
+        }
+    }
+    Component {
+        id: pairingComponent
+        PairingView {
+            micdroid: popup.micdroid
+            onDone: popup.showPairing = false
+        }
     }
 }

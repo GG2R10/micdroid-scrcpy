@@ -100,6 +100,20 @@ class DaemonInterface(ServiceInterface):
             ),
         })
 
+    def _register_connected_device(self, address: str, adb_path: str) -> str:
+        """Upserts a roster entry for a device we just successfully
+        `adb connect`ed to. The connect address IS the adb serial for tcpip
+        devices, so it doubles as the device id.
+        """
+        from . import adb_tracker
+        serial = address
+        dev = self._roster.get(serial) or Device(serial=serial, name=serial,
+                                                   transport="tcpip", last_address=address)
+        dev.last_address = address
+        dev.wifi_adb2_capable = adb_tracker.is_wifi_adb2_capable(adb_path)
+        self._roster.upsert(dev)
+        return serial
+
     @method()
     async def ConnectByAddress(self, address: "s") -> "bss":  # noqa: N802
         from . import adb_tracker
@@ -107,13 +121,33 @@ class DaemonInterface(ServiceInterface):
         ok, message = await adb_tracker.adb_connect(adb_path, address)
         if not ok:
             return [False, message, ""]
-        serial = address
-        dev = self._roster.get(serial) or Device(serial=serial, name=serial,
-                                                   transport="tcpip", last_address=address)
-        dev.last_address = address
-        dev.wifi_adb2_capable = adb_tracker.is_wifi_adb2_capable(adb_path)
-        self._roster.upsert(dev)
+        serial = self._register_connected_device(address, adb_path)
         return [True, message, serial]
+
+    @method()
+    async def Pair(self, host: "s", pair_port: "s", code: "s") -> "bbss":  # noqa: N802
+        """Runs `adb pair`, then tries to auto-discover the (separate)
+        connect port via mDNS and finish connecting in one step. If that
+        discovery fails - Avahi not installed, or the phone just isn't
+        advertising it - pairing has still succeeded; the widget should tell
+        the user to finish with "Connect by address" using the IP:port shown
+        on the phone's Wireless debugging screen.
+        """
+        from . import adb_tracker
+        adb_path = self._config.get("adbPath") or "adb"
+        paired, message = await adb_tracker.adb_pair(adb_path, f"{host}:{pair_port}", code)
+        if not paired:
+            return [False, False, message, ""]
+
+        connected, address = await adb_tracker.find_and_connect_after_pairing(adb_path, host)
+        if not connected:
+            return [True, False,
+                    "Paired successfully, but couldn't auto-discover the connect port. "
+                    "Use \"Connect by address\" with the IP:port shown on the phone's "
+                    "Wireless debugging screen.", ""]
+
+        serial = self._register_connected_device(address, adb_path)
+        return [True, True, f"Paired and connected as {address}", serial]
 
     @method()
     async def Connect(self, serial: "s") -> "bs":  # noqa: N802

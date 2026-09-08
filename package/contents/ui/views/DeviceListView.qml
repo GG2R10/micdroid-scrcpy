@@ -6,25 +6,22 @@ import org.kde.kirigami as Kirigami
 ColumnLayout {
     id: view
     property var micdroid: null
+    signal pairNewDevice()
     spacing: Kirigami.Units.smallSpacing
 
     readonly property var activeStates: ["Forwarding", "DegradedProbing", "Reconnecting"]
 
     RowLayout {
         Layout.fillWidth: true
-        QQC2.TextField {
-            id: addressField
+        Kirigami.Heading {
             Layout.fillWidth: true
-            placeholderText: i18n("host:port (already paired via adb pair)")
+            level: 5
+            text: i18n("Devices")
         }
         QQC2.Button {
-            text: i18n("Connect")
-            enabled: addressField.text.trim().length > 0
-            onClicked: {
-                micdroid.connectByAddress(addressField.text.trim(), function (ok) {
-                    if (ok) addressField.text = ""
-                })
-            }
+            text: i18n("Pair new device")
+            icon.name: "list-add"
+            onClicked: view.pairNewDevice()
         }
     }
 
@@ -35,7 +32,7 @@ ColumnLayout {
         visible: micdroid && micdroid.devicesModel.count === 0
         wrapMode: Text.WordWrap
         opacity: 0.7
-        text: i18n("No known devices yet. Pair one with \"adb pair host:port\" in a terminal, then connect it above.")
+        text: i18n("No known devices yet. Pair one above, or connect an already-paired one by address below.")
     }
 
     ListView {
@@ -100,6 +97,26 @@ ColumnLayout {
                     QQC2.ToolTip.visible: hovered
                     onClicked: micdroid.forgetDevice(model.serial)
                 }
+            }
+        }
+    }
+
+    Kirigami.Separator { Layout.fillWidth: true }
+
+    RowLayout {
+        Layout.fillWidth: true
+        QQC2.TextField {
+            id: addressField
+            Layout.fillWidth: true
+            placeholderText: i18n("Or connect by address (host:port)")
+        }
+        QQC2.Button {
+            text: i18n("Connect")
+            enabled: addressField.text.trim().length > 0
+            onClicked: {
+                micdroid.connectByAddress(addressField.text.trim(), function (ok) {
+                    if (ok) addressField.text = ""
+                })
             }
         }
     }

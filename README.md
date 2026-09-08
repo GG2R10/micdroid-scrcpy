@@ -24,10 +24,6 @@ AudioRelay/WoMic/AndroidMic, controlled from a KDE Plasma 6 widget.
 v1 scope, by design:
 - **One forwarding session at a time.** A single virtual mic pair only needs
   one source.
-- **Pairing a new device happens once, by you, in a terminal**
-  (`adb pair host:port`, `adb connect host:port` - see below). The widget
-  handles everything from there (listing, reconnecting, forwarding); it does
-  not have its own pairing-code UI.
 - **Auto-start is opt-in**, off by default (Settings > Advanced): if enabled,
   a known device that becomes reachable starts forwarding automatically.
 
@@ -55,17 +51,19 @@ device roster and settings - untouched).
 
 ## First-time device setup
 
-On your phone: Settings > Developer options > Wireless debugging > Pair
-device with pairing code. Then, once, from a terminal:
+On your phone: Settings > Developer options > Wireless debugging > "Pair
+device with pairing code". In the widget, click **Pair new device** and
+enter the IP, pairing port, and 6-digit code it shows. The daemon runs
+`adb pair`, then tries to auto-discover the (separate) *connect* port via
+mDNS and finish connecting in one step.
 
-```bash
-adb pair <phone-ip>:<pairing-port>   # enter the 6-digit code shown on the phone
-adb connect <phone-ip>:<port>        # the *connect* port, shown on the same screen
-```
-
-Paste that same `host:port` into the widget's "Connect" field - it now
-appears in your device list permanently, and you won't need to repeat this
-unless the device needs re-pairing (e.g. after a factory reset).
+If that auto-discovery doesn't find it (e.g. Avahi isn't installed, or the
+phone stopped advertising it), pairing itself still succeeded - use the
+"Or connect by address" field at the bottom of the device list with the
+IP:port shown on the phone's main Wireless debugging screen (not the pairing
+dialog's port). Either way, the device then appears in your list
+permanently; you won't need to repeat this unless it needs re-pairing (e.g.
+after a factory reset).
 
 ## Development
 
