@@ -17,14 +17,14 @@ Kirigami.FormLayout {
     property alias cfg_reconnectBackoffSec: backoffField.text
     property alias cfg_adbPath: adbPathField.text
     property alias cfg_scrcpyPath: scrcpyPathField.text
-    property alias cfg_rightClickAction: rightClickCombo.currentIndex
+    property alias cfg_quickAction: quickActionCombo.currentIndex
     readonly property bool cfg_autoStartOnKnownDeviceDefault: false
     readonly property int cfg_probeIntervalSecDefault: 15
     readonly property int cfg_maxReconnectAttemptsDefault: 5
     readonly property string cfg_reconnectBackoffSecDefault: "2,5,10,20,40,60"
     readonly property string cfg_adbPathDefault: ""
     readonly property string cfg_scrcpyPathDefault: ""
-    readonly property int cfg_rightClickActionDefault: 0
+    readonly property int cfg_quickActionDefault: 0
 
     // Placeholders for the Audio page's entries - see ConfigAudio.qml's
     // comment on why every page needs every cfg_ property to exist, even
@@ -84,9 +84,9 @@ Kirigami.FormLayout {
     Kirigami.Separator { Kirigami.FormData.isSection: true }
 
     QQC2.ComboBox {
-        id: rightClickCombo
-        Kirigami.FormData.label: i18n("Right-click the panel icon:")
-        // Index order must match main.qml's performRightClickAction().
+        id: quickActionCombo
+        Kirigami.FormData.label: i18n("Middle-click the panel icon:")
+        // Index order must match main.qml's performQuickAction().
         model: [
             i18n("Toggle mute"),
             i18n("Disconnect active wireless device"),
@@ -95,7 +95,7 @@ Kirigami.FormLayout {
     }
     QQC2.Label {
         Kirigami.FormData.isSection: true
-        text: i18n("Runs immediately, without opening the popup - the panel's own \"Configure/Remove\" menu is still reachable from the panel's edit mode.")
+        text: i18n("Runs immediately, without opening the popup. Right-click still opens the normal \"Configure/Remove\" menu.")
         wrapMode: Text.WordWrap
         font.italic: true
     }

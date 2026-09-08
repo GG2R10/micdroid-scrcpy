@@ -17,7 +17,7 @@ Item {
     // correctly across that boundary was untested/ambiguous. A plain signal
     // avoids that question entirely.
     signal clicked()
-    signal rightClicked()
+    signal middleClicked()
 
     function badgeColor() {
         if (!dependenciesOk || !serviceRunning) return "#9e9e9e"
@@ -98,17 +98,19 @@ Item {
 
     // A custom compactRepresentation replaces PlasmoidItem's default
     // click-to-expand handling entirely - without this, left-click does
-    // nothing. Right-click is repurposed for a configurable quick action
-    // (mute/disconnect/toggle service - see performRightClickAction() in
-    // main.qml) instead of the standard applet context menu; the panel's
-    // own edit mode is still how you reach "Configure.../Remove" for this
-    // widget.
+    // nothing. Middle-click is repurposed for a configurable quick action
+    // (mute/disconnect/toggle service - see performQuickAction() in
+    // main.qml). Right-click is deliberately NOT accepted here (first
+    // tried that, then found it silently ate the standard applet context
+    // menu - "Configure.../Remove" - since a MouseArea that accepts a
+    // button consumes it before Plasma's own right-click handling ever
+    // sees it) so the panel's normal right-click menu keeps working.
     MouseArea {
         anchors.fill: parent
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
         onClicked: (mouse) => {
-            if (mouse.button === Qt.RightButton) {
-                compact.rightClicked()
+            if (mouse.button === Qt.MiddleButton) {
+                compact.middleClicked()
             } else {
                 compact.clicked()
             }

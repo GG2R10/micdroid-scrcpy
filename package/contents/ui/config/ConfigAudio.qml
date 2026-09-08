@@ -49,8 +49,8 @@ Kirigami.FormLayout {
     readonly property string cfg_reconnectBackoffSecDefault: "2,5,10,20,40,60"
     readonly property string cfg_adbPathDefault: ""
     readonly property string cfg_scrcpyPathDefault: ""
-    property int cfg_rightClickAction: 0
-    readonly property int cfg_rightClickActionDefault: 0
+    property int cfg_quickAction: 0
+    readonly property int cfg_quickActionDefault: 0
 
     QQC2.ComboBox {
         id: audioSourceCombo

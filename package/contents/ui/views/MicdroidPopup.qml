@@ -7,7 +7,30 @@ ColumnLayout {
     id: popup
     property var micdroid: null
 
-    Layout.preferredWidth: Kirigami.Units.gridUnit * 22
+    // Fixed, like the width - dynamically sizing the popup from
+    // Loader.item.implicitHeight (tried first) didn't reliably grow it: the
+    // ScrollView/Loader/content width chain (Loader width bound from
+    // ScrollView.availableWidth, height read back from the loaded item)
+    // isn't guaranteed to settle before the popup uses it, and in practice
+    // still left the pairing view's bottom button row cut off. A flat
+    // constant is simple and correct; the ScrollView below is still there
+    // as a safety net for content that's genuinely taller than this (e.g.
+    // a long device list).
+    //
+    // Both implicitWidth/Height AND Layout.preferred* are set: Plasma's
+    // popup dialog sizes the fullRepresentation root by implicitWidth/
+    // implicitHeight (plain Item properties), not the Layout.preferred*
+    // attached properties (those only matter when this item is itself a
+    // Layout's *child*, which the popup root isn't) - Layout.preferredWidth
+    // alone visually "working" before was coincidental, some other default
+    // happened to land close to it. implicitHeight alone previously came
+    // out too small (ColumnLayout's own implicit size is the sum of its
+    // children's *minimum* useful size, which for a wrapping Label can be
+    // near zero) - setting it explicitly overrides that.
+    implicitWidth: Kirigami.Units.gridUnit * 22
+    implicitHeight: Kirigami.Units.gridUnit * 24
+    Layout.preferredWidth: implicitWidth
+    Layout.preferredHeight: implicitHeight
     Layout.margins: Kirigami.Units.smallSpacing
     spacing: Kirigami.Units.smallSpacing
 
@@ -85,14 +108,26 @@ ColumnLayout {
         text: micdroid ? micdroid.lastError : ""
     }
 
-    Loader {
+    // ScrollView as a safety net: with the popup's height now fixed above
+    // (see that comment), this only ever needs to kick in for content
+    // that's genuinely taller than that budget (e.g. a long device list) -
+    // it fills the space the fixed popup height already guarantees, rather
+    // than trying to compute its own height from content.
+    QQC2.ScrollView {
+        id: contentScroll
         Layout.fillWidth: true
         Layout.fillHeight: true
-        sourceComponent: {
-            if (!micdroid || !micdroid.serviceRunning) return serviceUnavailableComponent
-            if (!micdroid.dependenciesOk) return dependencyWarningComponent
-            if (popup.showPairing) return pairingComponent
-            return deviceListComponent
+        clip: true
+
+        Loader {
+            id: contentLoader
+            width: contentScroll.availableWidth
+            sourceComponent: {
+                if (!micdroid || !micdroid.serviceRunning) return serviceUnavailableComponent
+                if (!micdroid.dependenciesOk) return dependencyWarningComponent
+                if (popup.showPairing) return pairingComponent
+                return deviceListComponent
+            }
         }
     }
 

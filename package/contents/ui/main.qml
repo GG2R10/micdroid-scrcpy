@@ -358,8 +358,8 @@ PlasmoidItem {
         control.run(cmd)
     }
 
-    function performRightClickAction() {
-        switch (Plasmoid.configuration.rightClickAction) {
+    function performQuickAction() {
+        switch (Plasmoid.configuration.quickAction) {
         case 0: // Toggle mute
             toggleMute()
             break
@@ -434,7 +434,7 @@ PlasmoidItem {
         serviceRunning: root.serviceRunning
         forwardingState: root.forwardingState
         onClicked: root.expanded = !root.expanded
-        onRightClicked: root.performRightClickAction()
+        onMiddleClicked: root.performQuickAction()
     }
 
     fullRepresentation: Views.MicdroidPopup {
