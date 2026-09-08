@@ -162,9 +162,12 @@ class DaemonInterface(ServiceInterface):
     @method()
     async def Disconnect(self, serial: "s") -> "bs":  # noqa: N802
         from . import adb_tracker
+        from .notify import notify
         if serial == self._sm.active_serial:
             await self._sm.stop_forwarding(serial)
         await adb_tracker.adb_disconnect(self._config.get("adbPath") or "adb", serial)
+        dev = self._roster.get(serial)
+        await notify(f"{dev.name if dev else serial} disconnected")
         return [True, "disconnected"]
 
     @method()
@@ -188,18 +191,24 @@ class DaemonInterface(ServiceInterface):
     @method()
     async def SetMute(self, muted: "b") -> "bb":  # noqa: N802
         from . import pipewire_route
+        from .notify import notify
         ok = await pipewire_route.set_mute(self._config.get("virtualSourceName"), muted)
         if ok:
             self.MuteChanged(muted)
+            await notify("Microphone muted" if muted else "Microphone unmuted",
+                          icon="audio-volume-muted" if muted else "audio-volume-high")
         return [ok, muted if ok else not muted]
 
     @method()
     async def ToggleMute(self) -> "bb":  # noqa: N802
         from . import pipewire_route
+        from .notify import notify
         new_state = await pipewire_route.toggle_mute(self._config.get("virtualSourceName"))
         if new_state is None:
             return [False, False]
         self.MuteChanged(new_state)
+        await notify("Microphone muted" if new_state else "Microphone unmuted",
+                      icon="audio-volume-muted" if new_state else "audio-volume-high")
         return [True, new_state]
 
     @method()

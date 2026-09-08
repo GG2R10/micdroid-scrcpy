@@ -40,5 +40,13 @@
     <entry name="scrcpyPath" type="String">
       <default></default>
     </entry>
+    <!-- 0 = mute toggle, 1 = disconnect the active wireless device,
+         2 = stop/start the backend service. Index order must match
+         ConfigAdvanced.qml's combo box and main.qml's
+         performRightClickAction(). Purely a widget-side UI preference -
+         never sent to the daemon via SetConfig. -->
+    <entry name="rightClickAction" type="Int">
+      <default>0</default>
+    </entry>
   </group>
 </kcfg>

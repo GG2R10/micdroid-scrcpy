@@ -249,6 +249,18 @@ PlasmoidItem {
         control.run(codePath("daemonctl.sh") + " StopForwarding " + shQuote(serial))
     }
 
+    function disconnectDevice(serial, onDone) {
+        control.run(codePath("daemonctl.sh") + " Disconnect " + shQuote(serial), function (ok, stdout) {
+            if (ok) {
+                const parts = parseGdbusTuple(stdout)
+                updateDeviceField(serial, "forwardingState", "Disconnected")
+                if (onDone) onDone(!!parts[0])
+                return
+            }
+            if (onDone) onDone(false)
+        })
+    }
+
     function connectByAddress(address, onDone) {
         control.run(codePath("daemonctl.sh") + " ConnectByAddress " + shQuote(address), function (ok, stdout) {
             if (ok) refreshDevices()
@@ -303,6 +315,67 @@ PlasmoidItem {
             if (ok) bootstrap()
             if (onDone) onDone(ok)
         })
+    }
+
+    function stopService(onDone) {
+        control.run(codePath("servicectl.sh") + " stop", function (ok) {
+            if (ok) {
+                root.serviceRunning = false
+                notifyClient(i18n("Micdroid service stopped"))
+            }
+            if (onDone) onDone(ok)
+        })
+    }
+
+    // Used by the right-click quick action - starts vs stops depending on
+    // the last known state, since there's no popup open to show a
+    // start/stop choice.
+    function toggleService(onDone) {
+        if (root.serviceRunning) {
+            stopService(onDone)
+        } else {
+            control.run(codePath("servicectl.sh") + " ensure-running", function (ok) {
+                root.serviceRunning = ok
+                if (ok) {
+                    bootstrap()
+                    notifyClient(i18n("Micdroid service started"))
+                }
+                if (onDone) onDone(ok)
+            })
+        }
+    }
+
+    // Fire-and-forget client-side notification for the right-click quick
+    // actions - these run with no popup open, so without this there would
+    // be no feedback at all that anything happened. Daemon-side actions
+    // (mute, disconnect) already notify from within the daemon itself
+    // (consistent regardless of what triggers them); this covers the one
+    // action - stopping/starting the service - that isn't a D-Bus call at
+    // all so the daemon has no hook to do it from.
+    function notifyClient(summary, body) {
+        const cmd = "notify-send -a micdroid -i audio-input-microphone "
+            + shQuote(summary) + " " + shQuote(body || "")
+        control.run(cmd)
+    }
+
+    function performRightClickAction() {
+        switch (Plasmoid.configuration.rightClickAction) {
+        case 0: // Toggle mute
+            toggleMute()
+            break
+        case 1: // Disconnect active wireless device
+            if (!root.activeDevice) {
+                notifyClient(i18n("Micdroid"), i18n("No device is currently forwarding"))
+            } else if (root.activeDevice.indexOf(":") === -1) {
+                notifyClient(i18n("Micdroid"), i18n("The active device is wired (USB) - nothing to disconnect"))
+            } else {
+                disconnectDevice(root.activeDevice)
+            }
+            break
+        case 2: // Stop/start the backend service
+            toggleService()
+            break
+        }
     }
 
     // Index order must match the ComboBox models in
@@ -361,6 +434,7 @@ PlasmoidItem {
         serviceRunning: root.serviceRunning
         forwardingState: root.forwardingState
         onClicked: root.expanded = !root.expanded
+        onRightClicked: root.performRightClickAction()
     }
 
     fullRepresentation: Views.MicdroidPopup {

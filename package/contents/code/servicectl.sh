@@ -51,6 +51,11 @@ case "${1:-}" in
             || { echo "$UNIT restarted but never claimed $BUS_NAME - check journalctl --user -u $UNIT" >&2; exit 1; }
         echo "restarted"
         ;;
+    stop)
+        systemctl --user stop "$UNIT" \
+            || { echo "failed to stop $UNIT" >&2; exit 1; }
+        echo "stopped"
+        ;;
     status)
         if systemctl --user is-active --quiet "$UNIT"; then
             echo "active"
@@ -60,7 +65,7 @@ case "${1:-}" in
         fi
         ;;
     *)
-        echo "usage: servicectl.sh {ensure-running|restart|status}" >&2
+        echo "usage: servicectl.sh {ensure-running|restart|stop|status}" >&2
         exit 2
         ;;
 esac

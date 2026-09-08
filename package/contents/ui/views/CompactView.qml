@@ -17,6 +17,7 @@ Item {
     // correctly across that boundary was untested/ambiguous. A plain signal
     // avoids that question entirely.
     signal clicked()
+    signal rightClicked()
 
     function badgeColor() {
         if (!dependenciesOk || !serviceRunning) return "#9e9e9e"
@@ -97,10 +98,20 @@ Item {
 
     // A custom compactRepresentation replaces PlasmoidItem's default
     // click-to-expand handling entirely - without this, left-click does
-    // nothing.
+    // nothing. Right-click is repurposed for a configurable quick action
+    // (mute/disconnect/toggle service - see performRightClickAction() in
+    // main.qml) instead of the standard applet context menu; the panel's
+    // own edit mode is still how you reach "Configure.../Remove" for this
+    // widget.
     MouseArea {
         anchors.fill: parent
-        acceptedButtons: Qt.LeftButton
-        onClicked: compact.clicked()
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: (mouse) => {
+            if (mouse.button === Qt.RightButton) {
+                compact.rightClicked()
+            } else {
+                compact.clicked()
+            }
+        }
     }
 }

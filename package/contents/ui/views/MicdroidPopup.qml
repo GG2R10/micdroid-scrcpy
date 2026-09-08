@@ -21,6 +21,30 @@ ColumnLayout {
             level: 3
             text: i18n("Micdroid")
         }
+        QQC2.Switch {
+            id: serviceSwitch
+            // Deliberately not a plain `checked: micdroid.serviceRunning`
+            // binding - the same right-click quick action that can flip
+            // serviceRunning while this popup is open would silently break
+            // it the first time the user also touches this switch (Qt
+            // detaches a declarative binding on any external/interactive
+            // write to the bound property). Explicit event-driven resync
+            // instead, so it stays correct regardless of what changed it.
+            QQC2.ToolTip.text: checked ? i18n("Service running - click to stop") : i18n("Service stopped - click to start")
+            QQC2.ToolTip.visible: hovered
+            Component.onCompleted: checked = !!(micdroid && micdroid.serviceRunning)
+            Connections {
+                target: micdroid
+                function onServiceRunningChanged() {
+                    serviceSwitch.checked = micdroid.serviceRunning
+                }
+            }
+            onToggled: {
+                micdroid.toggleService(function (ok) {
+                    if (!ok) serviceSwitch.checked = micdroid.serviceRunning
+                })
+            }
+        }
         QQC2.BusyIndicator {
             visible: popup.restarting
             implicitWidth: Kirigami.Units.iconSizes.small
