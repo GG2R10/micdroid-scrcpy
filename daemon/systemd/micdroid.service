@@ -1,0 +1,16 @@
+[Unit]
+Description=Micdroid Android-mic-as-PC-mic daemon
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/micdroid/venv/bin/python -m micdroid_daemon
+Restart=on-failure
+RestartSec=2
+Environment=PYTHONUNBUFFERED=1
+
+# Not enabled by default (see install.sh) - v1 starts on demand when the
+# plasmoid needs it, not at every login, to keep footprint at zero when the
+# feature isn't in use.
+[Install]
+WantedBy=graphical-session.target

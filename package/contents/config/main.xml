@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile arg="true"/>
+  <group name="General">
+    <entry name="audioSource" type="String">
+      <default>mic</default>
+    </entry>
+    <entry name="audioCodec" type="String">
+      <default>raw</default>
+    </entry>
+    <entry name="virtualSinkName" type="String">
+      <default>VirtualMicSink</default>
+    </entry>
+    <entry name="virtualSourceName" type="String">
+      <default>VirtualMicSource</default>
+    </entry>
+    <entry name="autoStartOnKnownDevice" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="probeIntervalSec" type="Int">
+      <default>15</default>
+    </entry>
+    <entry name="maxReconnectAttempts" type="Int">
+      <default>5</default>
+    </entry>
+    <entry name="reconnectBackoffSec" type="String">
+      <default>2,5,10,20,40,60</default>
+    </entry>
+    <entry name="adbPath" type="String">
+      <default></default>
+    </entry>
+    <entry name="scrcpyPath" type="String">
+      <default></default>
+    </entry>
+  </group>
+</kcfg>

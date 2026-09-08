@@ -1,0 +1,16 @@
+[project]
+name = "micdroid-daemon"
+version = "0.1.0"
+description = "Background daemon that forwards an Android phone's microphone (via scrcpy/adb) into a PipeWire virtual microphone, exposed over D-Bus for the micdroid KDE Plasma widget."
+requires-python = ">=3.11"
+dependencies = [
+    "dbus-next>=0.2.3",
+    "zeroconf>=0.132",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["micdroid_daemon*"]

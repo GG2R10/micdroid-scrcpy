@@ -1,0 +1,7 @@
+daemon/.venv/
+daemon/build/
+daemon/*.egg-info/
+__pycache__/
+*.pyc
+*.plasmoid
+.claude/
