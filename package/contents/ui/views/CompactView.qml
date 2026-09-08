@@ -61,13 +61,13 @@ Item {
             running: compact.isForwarding
             from: 0
             to: 360
-            duration: 1800
+            duration: 6000 // ~30% of the original 1800ms speed
             loops: Animation.Infinite
         }
 
         ShapePath {
             strokeColor: "#2ecc71"
-            strokeWidth: Math.max(2, activeRing.width * 0.08)
+            strokeWidth: Math.max(1, activeRing.width * 0.04) // half of the original 2 / 0.08
             fillColor: "transparent"
             capStyle: ShapePath.RoundCap
 
