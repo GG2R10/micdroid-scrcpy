@@ -86,8 +86,14 @@ ColumnLayout {
                     onClicked: micdroid.stopForwarding(model.serial)
                 }
                 QQC2.Button {
-                    visible: model.forwardingState === "NeedsRepair"
-                    text: i18n("Retry")
+                    // Covers both a device that dropped out entirely (its
+                    // wireless adb session can end for reasons unrelated to
+                    // this widget - the phone locking, Wi-Fi hiccups, or the
+                    // adb *server* itself getting restarted, which drops
+                    // every TCP/IP adb connection at once) and one that gave
+                    // up after repeated failed reconnect attempts.
+                    visible: model.forwardingState === "Disconnected" || model.forwardingState === "NeedsRepair"
+                    text: i18n("Reconnect")
                     icon.name: "view-refresh"
                     onClicked: micdroid.retryDevice(model.serial)
                 }
