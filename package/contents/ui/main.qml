@@ -272,10 +272,17 @@ PlasmoidItem {
         })
     }
 
-    function restartService() {
+    function restartService(onDone) {
+        // servicectl.sh now polls for the D-Bus name to actually be owned
+        // again before returning, so this can take a few seconds - callers
+        // should show a busy state rather than let it look unresponsive
+        // (confirmed live: without one, repeated impatient clicks each
+        // restarted the daemon again, and every such restart drops all
+        // wireless adb connections along with it).
         control.run(codePath("servicectl.sh") + " restart", function (ok) {
             root.serviceRunning = ok
             if (ok) bootstrap()
+            if (onDone) onDone(ok)
         })
     }
 

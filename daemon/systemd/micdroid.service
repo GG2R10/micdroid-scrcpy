@@ -9,6 +9,19 @@ Restart=on-failure
 RestartSec=2
 Environment=PYTHONUNBUFFERED=1
 
+# The default KillMode (control-group) kills every process in this unit's
+# cgroup on stop/restart - including the `adb` server, which ends up living
+# there because it's spawned as a child of this very process
+# (adb_tracker.py's `adb start-server`, run whenever the daemon can't reach
+# 127.0.0.1:5037 on startup). Confirmed live: with the default KillMode,
+# every single restart of this service also killed the adb server, and
+# killing the adb server drops every existing TCP/IP (wireless) adb
+# connection at once - USB devices just get rediscovered, wireless ones
+# don't reconnect on their own. KillMode=process only signals the main
+# tracked PID, letting the adb server (and any in-flight scrcpy session)
+# survive a daemon restart.
+KillMode=process
+
 # Not enabled by default (see install.sh) - v1 starts on demand when the
 # plasmoid needs it, not at every login, to keep footprint at zero when the
 # feature isn't in use.
