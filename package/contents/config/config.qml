@@ -3,8 +3,13 @@ import org.kde.plasma.configuration
 
 ConfigModel {
     ConfigCategory {
-        name: i18n("General")
+        name: i18n("Audio")
         icon: "audio-input-microphone"
-        source: "config/ConfigGeneral.qml"
+        source: "config/ConfigAudio.qml"
+    }
+    ConfigCategory {
+        name: i18n("Advanced")
+        icon: "configure"
+        source: "config/ConfigAdvanced.qml"
     }
 }
