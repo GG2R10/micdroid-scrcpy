@@ -27,6 +27,19 @@ ColumnLayout {
             implicitHeight: Kirigami.Units.iconSizes.small
         }
         QQC2.ToolButton {
+            // Deliberately not `checkable: true` - QQC2's own click-driven
+            // toggle would assign `checked` imperatively and permanently
+            // break a declarative binding to micdroid.muted (Qt breaks a
+            // binding on any external write to the bound property). The
+            // icon/tooltip stay purely derived from muted instead, and
+            // toggleMute() is the only thing that ever changes it.
+            visible: micdroid && micdroid.serviceRunning && micdroid.dependenciesOk
+            icon.name: (micdroid && micdroid.muted) ? "audio-volume-muted" : "audio-volume-high"
+            QQC2.ToolTip.text: (micdroid && micdroid.muted) ? i18n("Unmute virtual microphone") : i18n("Mute virtual microphone")
+            QQC2.ToolTip.visible: hovered
+            onClicked: micdroid.toggleMute()
+        }
+        QQC2.ToolButton {
             icon.name: "view-refresh"
             enabled: !popup.restarting
             QQC2.ToolTip.text: i18n("Restart service")

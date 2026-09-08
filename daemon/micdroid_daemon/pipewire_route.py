@@ -149,3 +149,53 @@ async def route_scrcpy_to_sink(sink_name: str) -> bool:
     log.warning("scrcpy audio stream did not appear within %.1fs",
                 MOVE_RETRY_ATTEMPTS * MOVE_RETRY_INTERVAL)
     return False
+
+
+# --- mute -----------------------------------------------------------
+#
+# Muting is applied to the virtual *source* (the end other apps - Discord,
+# OBS, a browser tab - actually read as "the microphone"), not the sink
+# scrcpy writes into. That keeps it a pure downstream toggle: scrcpy, the
+# adb connection, and the loopback routing are all completely undisturbed -
+# no subprocess spawn/kill, no re-routing, just PipeWire's own mute flag on
+# one node. `pactl get/set-source-mute` output is confirmed live as
+# "Mute: yes"/"Mute: no" text (pactl 17.x here), not a bare "yes"/"no" or a
+# 1/0 flag, so parsing has to match that.
+
+async def get_mute(source_name: str) -> bool | None:
+    """Returns None if the source doesn't currently exist (e.g. no
+    forwarding session has ever run yet) rather than raising - the caller
+    should treat that as "nothing to mute", not an error.
+    """
+    proc = await asyncio.create_subprocess_exec(
+        "pactl", "get-source-mute", source_name,
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+    )
+    stdout, _ = await proc.communicate()
+    if proc.returncode != 0:
+        return None
+    return stdout.decode(errors="replace").strip().lower() == "mute: yes"
+
+
+async def set_mute(source_name: str, muted: bool) -> bool:
+    """Returns True if the mute state was actually applied, False if the
+    source doesn't exist right now.
+    """
+    proc = await asyncio.create_subprocess_exec(
+        "pactl", "set-source-mute", source_name, "1" if muted else "0",
+        stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        log.warning("pactl set-source-mute failed: %s", stderr.decode(errors="replace"))
+        return False
+    return True
+
+
+async def toggle_mute(source_name: str) -> bool | None:
+    """Returns the new mute state, or None if the source doesn't exist."""
+    current = await get_mute(source_name)
+    if current is None:
+        return None
+    ok = await set_mute(source_name, not current)
+    return (not current) if ok else current

@@ -180,6 +180,29 @@ class DaemonInterface(ServiceInterface):
         return await self._sm.forget(serial)
 
     @method()
+    async def GetMuted(self) -> "b":  # noqa: N802
+        from . import pipewire_route
+        muted = await pipewire_route.get_mute(self._config.get("virtualSourceName"))
+        return bool(muted)
+
+    @method()
+    async def SetMute(self, muted: "b") -> "bb":  # noqa: N802
+        from . import pipewire_route
+        ok = await pipewire_route.set_mute(self._config.get("virtualSourceName"), muted)
+        if ok:
+            self.MuteChanged(muted)
+        return [ok, muted if ok else not muted]
+
+    @method()
+    async def ToggleMute(self) -> "bb":  # noqa: N802
+        from . import pipewire_route
+        new_state = await pipewire_route.toggle_mute(self._config.get("virtualSourceName"))
+        if new_state is None:
+            return [False, False]
+        self.MuteChanged(new_state)
+        return [True, new_state]
+
+    @method()
     def RescanDependencies(self) -> "s":  # noqa: N802
         results = deps.check_dependencies(self._config.get("adbPath"), self._config.get("scrcpyPath"))
         self._dependency_results = results
@@ -235,6 +258,10 @@ class DaemonInterface(ServiceInterface):
     @signal()
     def DependencyCheckResult(self, results: "a{sv}") -> "a{sv}":  # noqa: N802
         return results
+
+    @signal()
+    def MuteChanged(self, muted: "b") -> "b":  # noqa: N802
+        return muted
 
 
 def make_emitter(interface: DaemonInterface):

@@ -12,6 +12,7 @@ PlasmoidItem {
     property string activeDevice: ""
     property string forwardingState: "Disconnected"
     property string lastError: ""
+    property bool muted: false
     property alias devicesModel: devicesModel
 
     readonly property var requiredTools: ["adb", "scrcpy", "pw-loopback", "pactl"]
@@ -220,7 +221,25 @@ PlasmoidItem {
         })
     }
 
+    function refreshMuteState() {
+        control.run(codePath("daemonctl.sh") + " GetMuted", function (ok, stdout) {
+            if (!ok) return
+            const parts = parseGdbusTuple(stdout)
+            root.muted = !!parts[0]
+        })
+    }
+
     // --- commands -------------------------------------------------
+
+    function toggleMute(onDone) {
+        control.run(codePath("daemonctl.sh") + " ToggleMute", function (ok, stdout) {
+            if (ok) {
+                const parts = parseGdbusTuple(stdout)
+                if (parts[0]) root.muted = !!parts[1]
+            }
+            if (onDone) onDone(root.muted)
+        })
+    }
 
     function startForwarding(serial) {
         control.run(codePath("daemonctl.sh") + " StartForwarding " + shQuote(serial))
@@ -320,6 +339,7 @@ PlasmoidItem {
             pushConfig()
             refreshDevices()
             refreshStatus()
+            refreshMuteState()
             eventStream.arm()
         })
     }
