@@ -111,26 +111,73 @@ PlasmoidItem {
         }
     }
 
-    // Self-re-arming tail of the daemon's runtime event log - see
-    // micdroid_daemon/eventlog.py for why this is used instead of `gdbus
-    // monitor` directly (gap-free: only a file position is tracked, no D-Bus
-    // subscription is torn down/recreated per event).
+    // Tail of the daemon's runtime event log - see micdroid_daemon/
+    // eventlog.py for why this is used instead of `gdbus monitor` directly.
+    //
+    // History of two failed designs before this one, both confirmed broken
+    // live rather than assumed:
+    //  1. Self-re-arming "read one line, disconnect, reconnect" (matching
+    //     gamemode-status's own DataSource idiom): a burst of several events
+    //     landing between one read finishing and the next `tail`
+    //     reconnecting is silently dropped, because the new `tail -F -n0`
+    //     only sees lines appended *after it starts* - and a real reconnect
+    //     cycle produces 5-6 rapid track-devices transitions, with the
+    //     *last* one (the ForwardingStateChanged a "Reconnect" click needs
+    //     to re-enable Start) the one most likely to fall in that gap.
+    //     Reproduced directly: a simulation of this exact pattern captured
+    //     3 of 5 events from one reconnect burst, missing the final one.
+    //  2. A single long-lived `tail -F` connection, relying on
+    //     Plasma5Support's executable engine calling onNewData once per
+    //     chunk of output for as long as the process runs: never fired at
+    //     all - confirmed live (a debug counter never incremented despite
+    //     the underlying `tail -F` process genuinely running and the
+    //     watched file genuinely changing). The engine appears to only
+    //     deliver output when the process *exits*, so a command that never
+    //     exits never reports anything back, which is presumably why
+    //     gamemode-status's own version of this never tried it.
+    //
+    // This design keeps a one-shot, always-exiting command (required per
+    // #2) but replaces "read one line" with "block until *something*
+    // changed, then read everything from the last position I actually
+    // consumed" (via `tail -n +N`, N tracked here) rather than "everything
+    // new since this tail happened to start" - so nothing that accumulates
+    // during the blocking step, however much, is ever missed. Rearming
+    // slightly late just means the next delta read is bigger, not lossy.
+    // The line count is also always resynced from a fresh `wc -l` each
+    // cycle rather than incremented by however many lines we parsed, so a
+    // daemon restart truncating the file (eventlog.py does this on
+    // startup) can't leave a stale offset permanently blocking future
+    // events - it just self-corrects to the smaller count.
     Plasma5Support.DataSource {
         id: eventStream
         engine: "executable"
+        property int lastLineCount: 0
 
         function arm() {
             Qt.callLater(function () {
+                const file = "\"${XDG_RUNTIME_DIR:-/tmp}/micdroid/events.log\""
                 eventStream.connectSource(
-                    "bash -c 'tail -F -n0 \"${XDG_RUNTIME_DIR:-/tmp}/micdroid/events.log\" 2>/dev/null | head -n1'"
+                    "bash -c 'tail -F -n0 " + file + " 2>/dev/null | head -n1 >/dev/null; " +
+                    "tail -n +" + (eventStream.lastLineCount + 1) + " " + file + " 2>/dev/null; " +
+                    "echo ___N___$(wc -l < " + file + " 2>/dev/null)'"
                 )
             })
         }
 
         onNewData: (source, data) => {
             eventStream.disconnectSource(source)
-            const line = (data["stdout"] || "").toString().trim()
-            if (line.length) root.handleEvent(line)
+            const chunk = (data["stdout"] || "").toString()
+            const marker = chunk.lastIndexOf("___N___")
+            let body = chunk
+            if (marker !== -1) {
+                const n = parseInt(chunk.slice(marker + 7).trim(), 10)
+                if (!isNaN(n)) eventStream.lastLineCount = n
+                body = chunk.slice(0, marker)
+            }
+            for (const line of body.split("\n")) {
+                const trimmed = line.trim()
+                if (trimmed.length) root.handleEvent(trimmed)
+            }
             eventStream.arm()
         }
     }
