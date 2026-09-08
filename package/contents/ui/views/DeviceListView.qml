@@ -64,8 +64,16 @@ ColumnLayout {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 0
-                    QQC2.Label { text: model.name; font.bold: true; elide: Text.ElideRight }
                     QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0 // else the layout won't shrink it below its full-text width, and elide never visibly kicks in
+                        text: model.name
+                        font.bold: true
+                        elide: Text.ElideRight
+                    }
+                    QQC2.Label {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         text: model.serial + " · " + model.forwardingState
                         opacity: 0.7
                         font.pointSize: Kirigami.Theme.smallFont.pointSize
