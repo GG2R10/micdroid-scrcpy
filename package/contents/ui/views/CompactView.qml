@@ -1,5 +1,4 @@
 import QtQuick
-import org.kde.plasma.plasmoid
 import org.kde.kirigami as Kirigami
 
 Item {
@@ -8,6 +7,13 @@ Item {
     property bool dependenciesOk: false
     property bool serviceRunning: false
     property string forwardingState: "Disconnected"
+
+    // Toggling Plasmoid.expanded is handled by main.qml (the actual
+    // PlasmoidItem root), not here - this file is loaded as a separate QML
+    // document, and relying on the `Plasmoid` attached singleton resolving
+    // correctly across that boundary was untested/ambiguous. A plain signal
+    // avoids that question entirely.
+    signal clicked()
 
     function badgeColor() {
         if (!dependenciesOk || !serviceRunning) return "#9e9e9e"
@@ -40,11 +46,10 @@ Item {
 
     // A custom compactRepresentation replaces PlasmoidItem's default
     // click-to-expand handling entirely - without this, left-click does
-    // nothing (confirmed: the panel icon rendered fine but never opened the
-    // popup until this was added).
+    // nothing.
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton
-        onClicked: Plasmoid.expanded = !Plasmoid.expanded
+        onClicked: compact.clicked()
     }
 }

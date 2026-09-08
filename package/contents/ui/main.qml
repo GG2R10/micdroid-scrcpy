@@ -315,6 +315,7 @@ PlasmoidItem {
         dependenciesOk: root.dependenciesOk
         serviceRunning: root.serviceRunning
         forwardingState: root.forwardingState
+        onClicked: root.expanded = !root.expanded
     }
 
     fullRepresentation: Views.MicdroidPopup {
