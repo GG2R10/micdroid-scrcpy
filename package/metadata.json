@@ -3,7 +3,7 @@
         "Id": "com.micdroid.applet",
         "Name": "Micdroid",
         "Description": "Use an Android phone's microphone as a PC microphone over adb/scrcpy, routed into a PipeWire virtual mic.",
-        "Icon": "audio-input-microphone",
+        "Icon": "micdroid",
         "Authors": [
             {
                 "Name": "micdroid",
