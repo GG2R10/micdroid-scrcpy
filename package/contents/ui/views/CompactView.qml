@@ -1,4 +1,5 @@
 import QtQuick
+import org.kde.plasma.plasmoid
 import org.kde.kirigami as Kirigami
 
 Item {
@@ -35,5 +36,15 @@ Item {
         border.color: Qt.rgba(0, 0, 0, 0.4)
         border.width: 1
         visible: badge.length > 0
+    }
+
+    // A custom compactRepresentation replaces PlasmoidItem's default
+    // click-to-expand handling entirely - without this, left-click does
+    // nothing (confirmed: the panel icon rendered fine but never opened the
+    // popup until this was added).
+    MouseArea {
+        anchors.fill: parent
+        acceptedButtons: Qt.LeftButton
+        onClicked: Plasmoid.expanded = !Plasmoid.expanded
     }
 }

@@ -5,11 +5,16 @@
       http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
   <kcfgfile arg="true"/>
   <group name="General">
-    <entry name="audioSource" type="String">
-      <default>mic</default>
+    <!-- Stored as a combo box index, not the semantic string (mic/opus/...)
+         directly - see ConfigAudio.qml's comment on why `property alias` to
+         currentIndex is what makes the config dialog's Apply button work.
+         main.qml's pushConfig() maps the index back to the string scrcpy
+         actually expects before sending it to the daemon. -->
+    <entry name="audioSource" type="Int">
+      <default>0</default>
     </entry>
-    <entry name="audioCodec" type="String">
-      <default>raw</default>
+    <entry name="audioCodec" type="Int">
+      <default>0</default>
     </entry>
     <entry name="virtualSinkName" type="String">
       <default>VirtualMicSink</default>

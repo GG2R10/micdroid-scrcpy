@@ -261,12 +261,19 @@ PlasmoidItem {
         })
     }
 
+    // Index order must match the ComboBox models in
+    // contents/ui/config/ConfigAudio.qml.
+    readonly property var audioSourceValues: [
+        "mic", "mic-voice-communication", "mic-unprocessed", "mic-camcorder", "mic-voice-recognition"
+    ]
+    readonly property var audioCodecValues: ["raw", "opus", "aac", "flac"]
+
     function pushConfig() {
         const backoff = String(Plasmoid.configuration.reconnectBackoffSec)
             .split(",").map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
         const cfg = {
-            audioSource: Plasmoid.configuration.audioSource,
-            audioCodec: Plasmoid.configuration.audioCodec,
+            audioSource: audioSourceValues[Plasmoid.configuration.audioSource] || "mic",
+            audioCodec: audioCodecValues[Plasmoid.configuration.audioCodec] || "raw",
             virtualSinkName: Plasmoid.configuration.virtualSinkName,
             virtualSourceName: Plasmoid.configuration.virtualSourceName,
             autoStartOnKnownDevice: Plasmoid.configuration.autoStartOnKnownDevice,
