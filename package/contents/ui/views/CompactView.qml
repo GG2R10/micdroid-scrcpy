@@ -52,22 +52,16 @@ Item {
         // it looks.
         isMask: true
 
-        // Mute indicator: the icon's own tint breathes toward red and back
-        // while muted, independent of whatever the connection-active
-        // indicator below is doing (a different Item, a different
-        // property) - the two need to be able to run at once (you can mute
-        // while forwarding), so they're deliberately on separate visual
-        // channels rather than both fighting over, say, the ring's color.
+        // Mute indicator: the icon's own tint turns red while muted - a
+        // plain static color, no pulsing (tried breathing first, per
+        // request simplified to just the color swap) - independent of
+        // whatever the connection-active indicator below is doing (a
+        // different Item, a different property) - the two need to be able
+        // to run at once (you can mute while forwarding), so they're
+        // deliberately on separate visual channels rather than both
+        // fighting over, say, the ring's color.
         readonly property color themeColor: Kirigami.Theme.textColor
-        property real mutePulse: 0 // 0..1, animated only while muted
-        color: compact.muted ? Qt.tint(themeColor, Qt.rgba(1, 0, 0, mutePulse * 0.8)) : themeColor
-
-        SequentialAnimation on mutePulse {
-            running: compact.muted
-            loops: Animation.Infinite
-            NumberAnimation { from: 0; to: 1; duration: 900; easing.type: Easing.InOutSine }
-            NumberAnimation { from: 1; to: 0; duration: 900; easing.type: Easing.InOutSine }
-        }
+        color: compact.muted ? "#e74c3c" : themeColor
     }
 
     // Connection-active indicator - visible while a forwarding session is
