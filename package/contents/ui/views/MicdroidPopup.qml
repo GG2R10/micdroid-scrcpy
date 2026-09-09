@@ -118,10 +118,31 @@ ColumnLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
         clip: true
+        // Only ever scroll vertically - horizontal scrolling here would
+        // only ever mean something overflowed and should be treated as a
+        // layout bug to fix, not a thing to let the user scroll sideways
+        // into (confirmed: PairingView's wider FormLayout did exactly that
+        // before the width binding below was added).
+        QQC2.ScrollBar.horizontal.policy: QQC2.ScrollBar.AlwaysOff
 
         Loader {
             id: contentLoader
             width: contentScroll.availableWidth
+            // Setting Loader.width alone only sizes the Loader's own
+            // bounding box - it does NOT make the *loaded item* (a
+            // ColumnLayout with no anchors of its own) match that width,
+            // since Loader doesn't force-resize children unless they're
+            // anchored to it. Without this, each view's root just used its
+            // own natural implicit width instead: DeviceListView's happened
+            // to fit anyway, but PairingView's wider Kirigami.FormLayout
+            // (longer labels) didn't, and the ScrollView above dutifully
+            // grew a horizontal scrollbar for the overflow. Re-binding
+            // item.width on every load keeps it tracking contentLoader.width
+            // (via Qt.binding, not a one-time assignment) for whichever view
+            // is loaded, not just the first one.
+            onLoaded: {
+                if (item) item.width = Qt.binding(function () { return contentLoader.width })
+            }
             sourceComponent: {
                 if (!micdroid || !micdroid.serviceRunning) return serviceUnavailableComponent
                 if (!micdroid.dependenciesOk) return dependencyWarningComponent
