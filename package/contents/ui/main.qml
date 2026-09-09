@@ -333,8 +333,20 @@ PlasmoidItem {
         })
     }
 
-    function retryDevice(serial) {
-        control.run(codePath("daemonctl.sh") + " Connect " + shQuote(serial))
+    function retryDevice(serial, onDone) {
+        // Connect() already sends a desktop notification either way (so
+        // this is still visible if the popup isn't open), but reusing
+        // root.lastError here also surfaces failures - e.g. reconnecting a
+        // device that's actually on USB, or one that's genuinely
+        // unreachable - as an inline message right in the popup while it's
+        // open, the same place other command failures already show up.
+        control.run(codePath("daemonctl.sh") + " Connect " + shQuote(serial), function (ok, stdout) {
+            if (ok) {
+                const parts = parseGdbusTuple(stdout)
+                root.lastError = parts[0] ? "" : (parts[1] || i18n("Reconnect failed"))
+            }
+            if (onDone) onDone(ok)
+        })
     }
 
     function forgetDevice(serial) {

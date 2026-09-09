@@ -151,15 +151,32 @@ class DaemonInterface(ServiceInterface):
 
     @method()
     async def Connect(self, serial: "s") -> "bs":  # noqa: N802
+        from .notify import notify
+
         dev = self._roster.get(serial)
         if dev is None:
             return [False, "unknown device"]
+
+        # A USB device has no network address to (re)connect to at all -
+        # adb's own notion of "connect" is a wireless-only operation. Without
+        # this check, this would fall through to `adb connect <usb-serial>`,
+        # a nonsensical call to a bare serial with no host:port in it, and
+        # come back with some unhelpful adb parse error instead of a message
+        # that actually tells the user what to do (confirmed as a real,
+        # not hypothetical, case: the panel's own moto_g14 row hitting
+        # exactly this when the cable's unplugged).
+        if dev.transport == "usb":
+            message = f"{dev.name} is connected over USB - plug the cable back in, there's no network address to reconnect to"
+            await notify(f"{dev.name}: can't reconnect", message, urgency="critical")
+            return [False, message]
+
         from . import adb_tracker
 
         adb_path = self._config.get("adbPath") or "adb"
         address = dev.last_address or serial
         ok, message = await adb_tracker.adb_connect(adb_path, address)
         if ok:
+            await notify(f"{dev.name} reconnected", address)
             return [True, message]
 
         # Wireless debugging's connect port is ephemeral - confirmed live
@@ -170,13 +187,30 @@ class DaemonInterface(ServiceInterface):
         # even though the device is genuinely still on the network and
         # still paired. Fall back to the same mDNS rediscovery the Pair
         # flow uses (scoped to this device's host) before giving up.
+        #
+        # Note this is still scoped to the *same host* (IP) - it recovers
+        # from the connect *port* changing, not the phone's IP itself
+        # changing (a DHCP lease renewal landing on a different address,
+        # a different network, etc.). That's a real, if much rarer, gap:
+        # IP changes are comparatively uncommon on a stable home network
+        # (most routers keep re-issuing the same lease to the same device),
+        # but they're not impossible, and there's currently no fallback for
+        # that case - it would need matching by something host-independent
+        # (e.g. the device's own identity) to safely avoid connecting to
+        # the wrong device if more than one is broadcasting on the network.
         if ":" not in serial:
+            await notify(f"{dev.name}: reconnect failed", message, urgency="critical")
             return [False, message]  # USB device - no IP to rediscover against
         host = address.split(":", 1)[0]
         found, new_address = await adb_tracker.find_and_connect_after_pairing(
             adb_path, host, attempts=3, interval=1.0
         )
         if not found:
+            await notify(
+                f"{dev.name}: reconnect failed", f"{message} - and it's not advertising on mDNS either; "
+                "is it actually powered on and on the same network?",
+                urgency="critical",
+            )
             return [False, message]
         if new_address != serial:
             # The serial itself (tcpip devices use their ip:port as the adb
@@ -192,6 +226,7 @@ class DaemonInterface(ServiceInterface):
         elif new_address != dev.last_address:
             dev.last_address = new_address
             self._roster.save()
+        await notify(f"{dev.name} reconnected", f"found on a new port: {new_address}")
         return [True, f"reconnected via rediscovered address {new_address}"]
 
     @method()
