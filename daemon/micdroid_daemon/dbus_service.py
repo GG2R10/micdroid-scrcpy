@@ -155,9 +155,44 @@ class DaemonInterface(ServiceInterface):
         if dev is None:
             return [False, "unknown device"]
         from . import adb_tracker
-        ok, message = await adb_tracker.adb_connect(self._config.get("adbPath") or "adb",
-                                                      dev.last_address or serial)
-        return [ok, message]
+
+        adb_path = self._config.get("adbPath") or "adb"
+        address = dev.last_address or serial
+        ok, message = await adb_tracker.adb_connect(adb_path, address)
+        if ok:
+            return [True, message]
+
+        # Wireless debugging's connect port is ephemeral - confirmed live
+        # this is a real, common failure mode, not hypothetical: toggling
+        # "Wireless debugging" off/on (or just enough time passing) gives
+        # the phone a *new* connect port, so a direct connect to the last
+        # known address eventually starts failing with "Connection refused"
+        # even though the device is genuinely still on the network and
+        # still paired. Fall back to the same mDNS rediscovery the Pair
+        # flow uses (scoped to this device's host) before giving up.
+        if ":" not in serial:
+            return [False, message]  # USB device - no IP to rediscover against
+        host = address.split(":", 1)[0]
+        found, new_address = await adb_tracker.find_and_connect_after_pairing(
+            adb_path, host, attempts=3, interval=1.0
+        )
+        if not found:
+            return [False, message]
+        if new_address != serial:
+            # The serial itself (tcpip devices use their ip:port as the adb
+            # serial) is now stale too, not just last_address - rename the
+            # roster entry so this doesn't also leave a duplicate row behind
+            # (confirmed live: without this, track-devices auto-registers a
+            # *second* entry for the new address once it independently
+            # notices the device, while the old one sits stuck at
+            # Disconnected forever since that exact address never comes
+            # back).
+            dev.last_address = new_address
+            await self._sm.rekey_device(serial, new_address)
+        elif new_address != dev.last_address:
+            dev.last_address = new_address
+            self._roster.save()
+        return [True, f"reconnected via rediscovered address {new_address}"]
 
     @method()
     async def Disconnect(self, serial: "s") -> "bs":  # noqa: N802

@@ -77,6 +77,22 @@ class DeviceRoster:
         if persist:
             self.save()
 
+    def rekey(self, old_serial: str, new_serial: str) -> bool:
+        """Renames a roster entry's key (and its Device.serial field) in
+        place - used when a tcpip device's ip:port changes (wireless
+        debugging's connect port is ephemeral and commonly cycles) but it's
+        still the same already-known device, so a plain reconnect shouldn't
+        leave a stale row behind plus a separate freshly auto-registered one
+        under the new address. Returns False if old_serial wasn't known.
+        """
+        dev = self._devices.pop(old_serial, None)
+        if dev is None:
+            return False
+        dev.serial = new_serial
+        self._devices[new_serial] = dev
+        self.save()
+        return True
+
     def touch_seen(self, serial: str) -> None:
         """Cheap, frequent update - does NOT write to disk on every call.
         Callers should periodically call save() (e.g. on state transitions)

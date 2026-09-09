@@ -214,6 +214,22 @@ class ForwardingStateMachine:
             await self._emit("DeviceRemoved", serial)
         return removed
 
+    async def rekey_device(self, old_serial: str, new_serial: str) -> None:
+        """A tcpip device's ip:port changed (wireless debugging's connect
+        port is ephemeral) but it's the same device we already know about -
+        rename its roster entry in place and tell the widget via the same
+        DeviceRemoved+DeviceAdded pair it already knows how to handle,
+        rather than leaving a stale row plus a separately auto-registered
+        duplicate under the new address.
+        """
+        if old_serial == new_serial or not self._roster.rekey(old_serial, new_serial):
+            return
+        if self._active_serial == old_serial:
+            self._active_serial = new_serial
+        dev = self._roster.get(new_serial)
+        await self._emit("DeviceRemoved", old_serial)
+        await self._emit("DeviceAdded", device_to_dbus_dict(dev))
+
     # --- internal: probing / reconnecting -------------------------------
 
     async def _probe_loop(self, dev: Device) -> None:
