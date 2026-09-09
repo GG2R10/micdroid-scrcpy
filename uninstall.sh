@@ -14,7 +14,7 @@ rm -f "$UNIT_DEST"
 systemctl --user daemon-reload
 
 echo "==> Removing the Plasma widget"
-kpackagetool6 -t Plasma/Applet -r com.micdroid.applet 2>/dev/null || true
+kpackagetool6 -t Plasma/Applet -r com.github.GG2R10.micdroid 2>/dev/null || true
 
 echo "==> Removing $INSTALL_DIR"
 rm -rf "$INSTALL_DIR"

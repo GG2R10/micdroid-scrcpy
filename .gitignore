@@ -1,6 +1,6 @@
-daemon/.venv/
-daemon/build/
-daemon/*.egg-info/
+package/contents/daemon/.venv/
+package/contents/daemon/build/
+package/contents/daemon/*.egg-info/
 __pycache__/
 *.pyc
 *.plasmoid

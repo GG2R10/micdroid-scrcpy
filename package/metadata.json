@@ -1,18 +1,18 @@
 {
     "KPlugin": {
-        "Id": "com.micdroid.applet",
+        "Id": "com.github.GG2R10.micdroid",
         "Name": "Micdroid",
         "Description": "Use an Android phone's microphone as a PC microphone over adb/scrcpy, routed into a PipeWire virtual mic.",
         "Icon": "audio-input-microphone",
         "Authors": [
             {
-                "Name": "micdroid",
+                "Name": "Conseq",
                 "Email": "herc2435@gmail.com"
             }
         ],
         "License": "GPL-3.0-or-later",
-        "Version": "0.1.0",
-        "Website": "https://github.com/"
+        "Version": "1.0.0",
+        "Website": "https://github.com/GG2R10/micdroid-scrcpy"
     },
     "KPackageStructure": "Plasma/Applet",
     "X-Plasma-API-Minimum-Version": "6.0"

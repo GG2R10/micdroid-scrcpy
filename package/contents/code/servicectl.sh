@@ -4,6 +4,7 @@
 # control.sh: exit 0 + stdout on success, nonzero + stderr on failure.
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UNIT="micdroid.service"
 BUS_NAME="org.micdroid.Daemon1"
 
@@ -34,11 +35,13 @@ wait_for_name_owned() {
 
 case "${1:-}" in
     ensure-running)
+        bash "$SCRIPT_DIR/bootstrap.sh" \
+            || { echo "backend setup failed - see stderr above, or check ~/.local/share/micdroid" >&2; exit 1; }
         if systemctl --user is-active --quiet "$UNIT" && wait_for_name_owned; then
             echo "already running"
         else
             systemctl --user start "$UNIT" \
-                || { echo "failed to start $UNIT - is it installed? run install.sh" >&2; exit 1; }
+                || { echo "failed to start $UNIT" >&2; exit 1; }
             wait_for_name_owned \
                 || { echo "$UNIT started but never claimed $BUS_NAME - check journalctl --user -u $UNIT" >&2; exit 1; }
             echo "started"
