@@ -51,6 +51,8 @@ Kirigami.FormLayout {
     readonly property string cfg_scrcpyPathDefault: ""
     property int cfg_quickAction: 0
     readonly property int cfg_quickActionDefault: 0
+    property int cfg_connectionAnimationStyle: 0
+    readonly property int cfg_connectionAnimationStyleDefault: 0
 
     QQC2.ComboBox {
         id: audioSourceCombo

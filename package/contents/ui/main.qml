@@ -492,6 +492,8 @@ PlasmoidItem {
         dependenciesOk: root.dependenciesOk
         serviceRunning: root.serviceRunning
         forwardingState: root.forwardingState
+        muted: root.muted
+        connectionAnimationStyle: Plasmoid.configuration.connectionAnimationStyle
         onClicked: root.expanded = !root.expanded
         onMiddleClicked: root.performQuickAction()
     }

@@ -48,5 +48,10 @@
     <entry name="quickAction" type="Int">
       <default>0</default>
     </entry>
+    <!-- 0 = rotating arc, 1 = breathing full ring, 2 = double comet. Purely
+         cosmetic (CompactView.qml) - never sent to the daemon. -->
+    <entry name="connectionAnimationStyle" type="Int">
+      <default>0</default>
+    </entry>
   </group>
 </kcfg>
