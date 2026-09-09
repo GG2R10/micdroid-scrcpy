@@ -26,10 +26,16 @@ Kirigami.FormLayout {
     property alias cfg_audioCodec: audioCodecCombo.currentIndex
     property alias cfg_virtualSinkName: sinkField.text
     property alias cfg_virtualSourceName: sourceField.text
+    property alias cfg_virtualSinkDescription: sinkDescriptionField.text
+    property alias cfg_virtualSourceDescription: sourceDescriptionField.text
+    property alias cfg_setAsDefaultSource: defaultSourceCheck.checked
     readonly property int cfg_audioSourceDefault: 0
     readonly property int cfg_audioCodecDefault: 0
     readonly property string cfg_virtualSinkNameDefault: "VirtualMicSink"
     readonly property string cfg_virtualSourceNameDefault: "VirtualMicSource"
+    readonly property string cfg_virtualSinkDescriptionDefault: ""
+    readonly property string cfg_virtualSourceDescriptionDefault: ""
+    readonly property bool cfg_setAsDefaultSourceDefault: false
 
     // Plasma's config-dialog loader seeds every kcfg entry's cfg_X (and
     // cfg_XDefault) property onto every loaded category page, regardless of
@@ -91,6 +97,37 @@ Kirigami.FormLayout {
     QQC2.Label {
         Kirigami.FormData.isSection: true
         text: i18n("If a PipeWire sink with this name already exists (for example your own loopback setup), micdroid reuses it instead of creating a new one.")
+        wrapMode: Text.WordWrap
+        font.italic: true
+    }
+
+    QQC2.TextField {
+        id: sinkDescriptionField
+        Kirigami.FormData.label: i18n("Virtual sink description:")
+        placeholderText: sinkField.text
+    }
+
+    QQC2.TextField {
+        id: sourceDescriptionField
+        Kirigami.FormData.label: i18n("Virtual source description:")
+        placeholderText: sourceField.text
+    }
+
+    QQC2.Label {
+        Kirigami.FormData.isSection: true
+        text: i18n("This is what apps like Discord actually show in their microphone picker - leave empty to just reuse the name above. Only applies when micdroid creates the sink/source itself; has no effect if one with that name already exists (see above), since PipeWire has no way to rename an existing node's description.")
+        wrapMode: Text.WordWrap
+        font.italic: true
+    }
+
+    QQC2.CheckBox {
+        id: defaultSourceCheck
+        Kirigami.FormData.label: i18n("System default:")
+        text: i18n("Set as the system's default microphone while forwarding")
+    }
+    QQC2.Label {
+        Kirigami.FormData.isSection: true
+        text: i18n("Restores whatever was default before, once forwarding stops. Off by default since changing the system's default mic is a real side effect other apps could notice mid-session.")
         wrapMode: Text.WordWrap
         font.italic: true
     }

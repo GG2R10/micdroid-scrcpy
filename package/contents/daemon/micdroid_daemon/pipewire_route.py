@@ -77,23 +77,36 @@ class OwnedLoopback:
             await self._process.wait()
 
 
-async def ensure_virtual_mic(sink_name: str, source_name: str) -> OwnedLoopback | None:
+async def ensure_virtual_mic(sink_name: str, source_name: str,
+                              sink_description: str = "", source_description: str = "") -> OwnedLoopback | None:
     """Returns an OwnedLoopback if we spawned our own pair (caller must stop()
     it when the forwarding session ends), or None if a sink with that name
     already existed (e.g. the user's static config) and nothing needs cleanup.
+
+    The description args (what apps like Discord actually display in their
+    microphone picker - `node.name` is just the internal identifier) only
+    take effect on the pair *we* create here. There is no `pactl` command to
+    rename an existing node's description after the fact (confirmed - it's
+    not in `pactl --help`'s command list), so if a sink with this name
+    already exists - e.g. a static pipewire.conf.d loopback set up before
+    this project existed - its description is whatever that static config
+    already gave it, unaffected by these settings.
     """
     if await sink_exists(sink_name):
-        log.info("reusing existing PipeWire sink %r", sink_name)
+        log.info("reusing existing PipeWire sink %r (its description, if any, is unchanged - "
+                 "there's no way to rename an existing node's description)", sink_name)
         return None
 
+    sink_description = sink_description or sink_name
+    source_description = source_description or source_name
     log.info("spawning pw-loopback to create %r / %r", sink_name, source_name)
     process = await asyncio.create_subprocess_exec(
         "pw-loopback",
         "--capture-props",
-        f"node.name={sink_name} node.description=\"{sink_name}\" "
+        f"node.name={sink_name} node.description=\"{sink_description}\" "
         f"media.class=Audio/Sink audio.position=[FL,FR]",
         "--playback-props",
-        f"node.name={source_name} node.description=\"{source_name}\" "
+        f"node.name={source_name} node.description=\"{source_description}\" "
         f"media.class=Audio/Source audio.position=[FL,FR]",
         stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
     )
@@ -199,3 +212,28 @@ async def toggle_mute(source_name: str) -> bool | None:
         return None
     ok = await set_mute(source_name, not current)
     return (not current) if ok else current
+
+
+# --- default source (opt-in "make it the system mic" convenience) -------
+
+async def get_default_source() -> str | None:
+    proc = await asyncio.create_subprocess_exec(
+        "pactl", "get-default-source",
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+    )
+    stdout, _ = await proc.communicate()
+    if proc.returncode != 0:
+        return None
+    return stdout.decode(errors="replace").strip() or None
+
+
+async def set_default_source(source_name: str) -> bool:
+    proc = await asyncio.create_subprocess_exec(
+        "pactl", "set-default-source", source_name,
+        stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
+    )
+    _, stderr = await proc.communicate()
+    if proc.returncode != 0:
+        log.warning("pactl set-default-source failed: %s", stderr.decode(errors="replace"))
+        return False
+    return True

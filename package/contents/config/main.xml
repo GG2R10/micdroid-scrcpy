@@ -22,6 +22,27 @@
     <entry name="virtualSourceName" type="String">
       <default>VirtualMicSource</default>
     </entry>
+    <!-- What apps actually display in their mic picker (node.description,
+         not node.name). Empty means "just use the name above". Only takes
+         effect on a sink/source this daemon creates itself - there's no way
+         to rename an existing node's description (see
+         pipewire_route.ensure_virtual_mic's docstring), so this has no
+         effect if a sink with that name already exists (e.g. your own
+         static pipewire.conf.d loopback). -->
+    <entry name="virtualSinkDescription" type="String">
+      <default></default>
+    </entry>
+    <entry name="virtualSourceDescription" type="String">
+      <default></default>
+    </entry>
+    <!-- Off by default - switches the system's default microphone to the
+         virtual one while forwarding, and restores whatever it was before
+         once forwarding stops. A real side effect (e.g. an unrelated app
+         querying the default mid-session), so opt-in like
+         autoStartOnKnownDevice below. -->
+    <entry name="setAsDefaultSource" type="Bool">
+      <default>false</default>
+    </entry>
     <entry name="autoStartOnKnownDevice" type="Bool">
       <default>false</default>
     </entry>

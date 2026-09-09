@@ -26,6 +26,20 @@ DEFAULTS: dict[str, Any] = {
     # static loopback config so both can target the same virtual mic.
     "virtualSinkName": "VirtualMicSink",
     "virtualSourceName": "VirtualMicSource",
+    # What apps actually display in their mic picker (node.description, not
+    # node.name) - only takes effect on a pair this daemon creates itself,
+    # never on a pre-existing sink/source it's just reusing (see
+    # pipewire_route.ensure_virtual_mic's docstring - there's no pactl
+    # command to rename an existing node's description). Empty string means
+    # "just use the name above".
+    "virtualSinkDescription": "",
+    "virtualSourceDescription": "",
+    # Opt-in, off by default - this changes the *system's* default
+    # microphone, a side effect real enough (e.g. it could affect an
+    # unrelated app that queries the default mid-session) that it shouldn't
+    # happen without the user asking for it, same reasoning as
+    # autoStartOnKnownDevice below.
+    "setAsDefaultSource": False,
     # Product decision: single global toggle, no per-device "primary" concept.
     "autoStartOnKnownDevice": False,
     # Reconnection state machine tuning (see state_machine.py).

@@ -57,6 +57,11 @@ class ForwardingStateMachine:
         self._reconnect_task: asyncio.Task | None = None
         self._reconnect_attempt = 0
         self._last_dirty_save = 0.0
+        # Whatever the system default source was right before we (optionally)
+        # switched it to our virtual mic - restored on teardown so a stopped
+        # session doesn't leave the OS pointing at a mic that may no longer
+        # even exist. None means "we haven't touched it this session".
+        self._previous_default_source: str | None = None
 
     @property
     def active_serial(self) -> str | None:
@@ -161,7 +166,8 @@ class ForwardingStateMachine:
 
         try:
             self._loopback = await pipewire_route.ensure_virtual_mic(
-                self._config.get("virtualSinkName"), self._config.get("virtualSourceName")
+                self._config.get("virtualSinkName"), self._config.get("virtualSourceName"),
+                self._config.get("virtualSinkDescription"), self._config.get("virtualSourceDescription"),
             )
         except RuntimeError as exc:
             await self._emit("ErrorOccurred", serial, "pipewire_setup_failed", str(exc))
@@ -187,6 +193,16 @@ class ForwardingStateMachine:
                 "scrcpy's audio stream could not be moved to the virtual mic sink; "
                 "audio may be playing on your default output instead",
             )
+        elif self._config.get("setAsDefaultSource"):
+            # Capture whatever was default *before* switching, once per
+            # session - if this fires again on a resume-after-reconnect (see
+            # _resume_after_reconnect), self._previous_default_source is
+            # already set from the original start, and we don't want to
+            # overwrite it with our own virtual mic (which is what
+            # get-default-source would now return).
+            if self._previous_default_source is None:
+                self._previous_default_source = await pipewire_route.get_default_source()
+            await pipewire_route.set_default_source(self._config.get("virtualSourceName"))
 
         await self._set_state(dev, "Forwarding")
         self._reconnect_attempt = 0
@@ -319,6 +335,17 @@ class ForwardingStateMachine:
                 log.info("reconnect attempt %d/%d for %s failed: %s",
                           self._reconnect_attempt, max_attempts, dev.serial, message)
 
+            # Give up releasing the loopback and restoring the default
+            # source too - previously this left both hanging around
+            # forever (a pre-existing gap noticed while adding default
+            # -source support: nothing ever reverted it once a device
+            # gave up reconnecting), and also left active_serial pointing
+            # at the dead device, permanently blocking starting forwarding
+            # on any other one. Uses _release_forwarding_resources(), not
+            # the full _teardown_active_session() - see that function's
+            # docstring for why (this runs inside the reconnect task
+            # itself).
+            await self._release_forwarding_resources()
             await self._set_state(dev, "NeedsRepair")
             await self._emit(
                 "ErrorOccurred", dev.serial, "reconnect_exhausted",
@@ -336,18 +363,33 @@ class ForwardingStateMachine:
         if not ok:
             log.warning("could not resume forwarding for %s after reconnect: %s", dev.serial, message)
 
-    async def _teardown_active_session(self) -> None:
-        if self._probe_task is not None:
-            self._probe_task.cancel()
-            self._probe_task = None
-        self._cancel_reconnect()
+    async def _release_forwarding_resources(self) -> None:
+        """The part of teardown that's safe to call from *inside* the
+        reconnect loop itself (see the NeedsRepair path in
+        _reconnect_loop): unlike _teardown_active_session, this never
+        touches _reconnect_task, so it can't cancel the very task that's
+        calling it (self._reconnect_task.cancel() marks the currently
+        -running task for cancellation too, and the next `await` inside it -
+        e.g. this same function's own loopback.stop() - would raise
+        CancelledError right back into itself).
+        """
         if self._session is not None:
             await self._session.stop()
             self._session = None
         if self._loopback is not None:
             await self._loopback.stop()
             self._loopback = None
+        if self._previous_default_source is not None:
+            await pipewire_route.set_default_source(self._previous_default_source)
+            self._previous_default_source = None
         self._active_serial = None
+
+    async def _teardown_active_session(self) -> None:
+        if self._probe_task is not None:
+            self._probe_task.cancel()
+            self._probe_task = None
+        self._cancel_reconnect()
+        await self._release_forwarding_resources()
 
     async def shutdown(self) -> None:
         """Called on daemon stop - don't leave scrcpy/pw-loopback orphaned."""
