@@ -4,4 +4,5 @@ package/contents/daemon/*.egg-info/
 __pycache__/
 *.pyc
 *.plasmoid
+*.zip
 .claude/
