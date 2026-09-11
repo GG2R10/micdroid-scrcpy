@@ -65,14 +65,21 @@ installed it.
 ## Install
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/GG2R10/micdroid-scrcpy/master/install.sh | bash
+```
+
+Clones this repo to `~/.local/share/micdroid-scrcpy` (re-running the same command later
+just updates that checkout instead of cloning again), then asks which frontend you want
+(widget, tray app, or both) and sets up the shared backend (venv + systemd unit) either
+way. Non-interactive: `curl -fsSL .../install.sh | bash -s -- widget` (or `tray`/`both`).
+
+Prefer cloning yourself first? Same script either way:
+
+```bash
 git clone https://github.com/GG2R10/micdroid-scrcpy.git
 cd micdroid-scrcpy
 ./install.sh
 ```
-
-Asks which frontend you want (widget, tray app, or both) and sets up the shared
-backend (venv + systemd unit) either way. Non-interactive: `./install.sh widget`,
-`./install.sh tray`, or `./install.sh both`.
 
 ### KDE Plasma widget only
 
@@ -102,7 +109,9 @@ installed the tray app, remove its entries too:
 `rm ~/.local/share/applications/micdroid-tray.desktop ~/.config/autostart/micdroid-tray.desktop`.
 If you installed the widget purely via the KDE Store, remove it from Plasma's widget
 list, then manually remove `~/.local/share/micdroid/` and
-`~/.config/systemd/user/micdroid.service`.
+`~/.config/systemd/user/micdroid.service`. If you used the `curl | bash` one-liner,
+`./uninstall.sh` there is this same script, at `~/.local/share/micdroid-scrcpy/uninstall.sh` -
+remove that whole directory afterward too, once you're done, to drop the checkout itself.
 
 ## First-time device setup
 
