@@ -12,9 +12,20 @@ Design confirmed by live testing against the user's actual PipeWire setup
   - What DOES work reliably: scrcpy's stream is trivially identifiable by
     `node.name == "scrcpy"` (and `application.name == "scrcpy"`), and a single
     `pactl move-sink-input <id> <sink>` right after it appears redirects it
-    instantly and stays put for the life of the stream. No continuous event
-    listener is needed for this - just a short bounded retry loop right after
-    spawning scrcpy.
+    instantly.
+  - That redirect does NOT stay put for the life of the stream, though
+    (confirmed live 2026-09-10, contradicting what this comment used to
+    claim): SDL's PipeWire backend keeps following the system's default sink
+    even after being moved, and if the *default* changes for any reason
+    (KDE's audio applet, `wpctl set-default`, unplugging a device...) it
+    destroys the existing stream and creates a brand new one - new node id,
+    new client id, confirmed via `pactl subscribe` showing a `remove` and a
+    fresh `new` sink-input event - which of course targets the new default,
+    silently undoing our move. A one-shot move-after-spawn genuinely cannot
+    survive this, since there is no stable node to keep a pin on; the fix is
+    `watch_scrcpy_routing()` below, a small `pactl subscribe` loop kept
+    running for the life of the forwarding session that re-applies the move
+    every time scrcpy's stream reappears.
   - The user's own system already has a static `VirtualMicSink`/
     `VirtualMicSource` loopback (defined in their pipewire.conf.d for
     AudioRelay) present at all times, independent of whether AudioRelay is
@@ -162,6 +173,73 @@ async def route_scrcpy_to_sink(sink_name: str) -> bool:
     log.warning("scrcpy audio stream did not appear within %.1fs",
                 MOVE_RETRY_ATTEMPTS * MOVE_RETRY_INTERVAL)
     return False
+
+
+async def watch_scrcpy_routing(sink_name: str) -> None:
+    """Runs for the whole life of a forwarding session (cancel this task on
+    teardown) re-applying the scrcpy -> sink_name redirect every time it's
+    needed, instead of the one-shot move `route_scrcpy_to_sink` does at
+    startup.
+
+    Why this exists: see the module docstring's 2026-09-10 update. In short,
+    changing the system's default sink (e.g. from KDE's own audio applet)
+    makes SDL tear down and recreate scrcpy's PipeWire stream to follow the
+    new default, which produces a `new` sink-input event on `pactl subscribe`
+    - so we just listen for that and re-move it, cheaply, for as long as
+    forwarding is active.
+
+    Confirmed live: `pactl subscribe`'s stdout is fully block-buffered (not
+    line-buffered) once it's a pipe rather than a tty, like most libc-stdio
+    programs - piping it straight into `asyncio.subprocess.PIPE` and doing
+    `readline()` measured real events arriving up to ~50s late, batched
+    behind unrelated PipeWire traffic (other apps' sink-inputs/clients
+    churning) until the OS pipe buffer happened to fill or the process
+    exited. `stdbuf -oL` forces line-buffering on that stdout and brought
+    delivery back down to sub-second, matching a direct `pactl subscribe` on
+    a terminal.
+    """
+    proc = await asyncio.create_subprocess_exec(
+        "stdbuf", "-oL", "pactl", "subscribe",
+        stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+    )
+    try:
+        assert proc.stdout is not None
+        while True:
+            line = await proc.stdout.readline()
+            if not line:
+                break
+            text = line.decode(errors="replace")
+            # Only 'new' events matter here: that's the signature of SDL
+            # recreating the stream (confirmed live - a default-sink change
+            # produces exactly one 'new' plus a later 'remove', not a
+            # 'change'). Reacting to every 'change' too would just mean
+            # redundant no-op moves, but there's no need for the noise.
+            if "'new'" not in text or "sink-input" not in text:
+                continue
+            sink_input_id = await _find_scrcpy_sink_input()
+            if sink_input_id is None:
+                continue
+            move = await asyncio.create_subprocess_exec(
+                "pactl", "move-sink-input", sink_input_id, sink_name,
+                stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
+            )
+            _, stderr = await move.communicate()
+            if move.returncode == 0:
+                log.info("re-routed scrcpy sink-input %s -> %s (it followed a default-sink change)",
+                          sink_input_id, sink_name)
+            else:
+                log.warning("re-route after default-sink change failed: %s",
+                            stderr.decode(errors="replace"))
+    except asyncio.CancelledError:
+        pass
+    finally:
+        if proc.returncode is None:
+            proc.terminate()
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=2.0)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
 
 
 # --- mute -----------------------------------------------------------

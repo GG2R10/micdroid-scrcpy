@@ -54,6 +54,7 @@ class ForwardingStateMachine:
         self._session: ScrcpySession | None = None
         self._loopback: pipewire_route.OwnedLoopback | None = None
         self._probe_task: asyncio.Task | None = None
+        self._routing_watch_task: asyncio.Task | None = None
         self._reconnect_task: asyncio.Task | None = None
         self._reconnect_attempt = 0
         self._last_dirty_save = 0.0
@@ -193,7 +194,17 @@ class ForwardingStateMachine:
                 "scrcpy's audio stream could not be moved to the virtual mic sink; "
                 "audio may be playing on your default output instead",
             )
-        elif self._config.get("setAsDefaultSource"):
+        else:
+            # Keep re-applying the redirect for the rest of the session -
+            # see pipewire_route.watch_scrcpy_routing's docstring: a one-shot
+            # move alone doesn't survive the system's default sink changing
+            # later (confirmed live 2026-09-10), since scrcpy's stream gets
+            # torn down and recreated to follow the new default.
+            self._routing_watch_task = asyncio.create_task(
+                pipewire_route.watch_scrcpy_routing(self._config.get("virtualSinkName")),
+                name=f"routing-watch-{serial}",
+            )
+        if routed and self._config.get("setAsDefaultSource"):
             # Capture whatever was default *before* switching, once per
             # session - if this fires again on a resume-after-reconnect (see
             # _resume_after_reconnect), self._previous_default_source is
@@ -288,6 +299,15 @@ class ForwardingStateMachine:
         if self._probe_task is not None:
             self._probe_task.cancel()
             self._probe_task = None
+        if self._routing_watch_task is not None:
+            # Otherwise start_forwarding() below (on a successful reconnect)
+            # would spawn a second `pactl subscribe` watcher on top of this
+            # one instead of replacing it - a leaked subprocess per
+            # reconnect cycle, same shape of bug as the pre-existing
+            # NeedsRepair leak this file's _release_forwarding_resources
+            # comment already documents.
+            self._routing_watch_task.cancel()
+            self._routing_watch_task = None
         if self._session is not None:
             await self._session.stop()
             self._session = None
@@ -359,6 +379,13 @@ class ForwardingStateMachine:
 
     async def _resume_after_reconnect(self, dev: Device) -> None:
         self._reconnect_task = None
+        # Live bug, confirmed 2026-09-10: dev.forwarding_state is still
+        # "Reconnecting" at this point (nothing transitions it back before
+        # calling start_forwarding), and start_forwarding refuses to run
+        # unless the device is "ConnectedIdle" - so every single resume was
+        # failing with "device is Reconnecting, expected ConnectedIdle",
+        # leaving the device stuck and never actually resuming audio.
+        await self._set_state(dev, "ConnectedIdle")
         ok, message = await self.start_forwarding(dev.serial)
         if not ok:
             log.warning("could not resume forwarding for %s after reconnect: %s", dev.serial, message)
@@ -373,6 +400,9 @@ class ForwardingStateMachine:
         e.g. this same function's own loopback.stop() - would raise
         CancelledError right back into itself).
         """
+        if self._routing_watch_task is not None:
+            self._routing_watch_task.cancel()
+            self._routing_watch_task = None
         if self._session is not None:
             await self._session.stop()
             self._session = None
