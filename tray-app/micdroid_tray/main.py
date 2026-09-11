@@ -121,39 +121,50 @@ class TrayApp:
     # --- tray menu ------------------------------------------------------
 
     def _build_menu(self) -> None:
-        menu = QMenu()
+        # Every QAction here is kept as self.<name>, not a local variable -
+        # confirmed live this is not just style: a QAction with no Python
+        # reference kept past this method returning gets garbage-collected
+        # despite menu.addAction(action) having been called (QMenu doesn't
+        # reparent/take ownership of an existing QAction passed to it), so
+        # it silently never shows up in the menu at all. Same bug class as
+        # the QQmlComponent ownership issue fixed earlier in this branch,
+        # just on the QtWidgets side instead of QML's - the two "did"
+        # survive by accident here (toggle_window_action, mute_action,
+        # disconnect_action) only because they were already self.* for
+        # unrelated reasons (their text/enabled state gets updated later).
+        self._menu = QMenu()
 
-        self.toggle_window_action = QAction("Mostrar/Ocultar")
+        self.toggle_window_action = QAction("Show/Hide")
         self.toggle_window_action.triggered.connect(self._toggle_window)
-        menu.addAction(self.toggle_window_action)
+        self._menu.addAction(self.toggle_window_action)
 
-        self.mute_action = QAction("Silenciar micrófono")
+        self.mute_action = QAction("Mute microphone")
         self.mute_action.triggered.connect(lambda: self.bridge.toggleMute())
-        menu.addAction(self.mute_action)
+        self._menu.addAction(self.mute_action)
 
-        self.disconnect_action = QAction("Desconectar dispositivo activo")
+        self.disconnect_action = QAction("Disconnect active device")
         self.disconnect_action.triggered.connect(
             lambda: self.bridge.activeDevice and self.bridge.disconnectDevice(self.bridge.activeDevice)
         )
-        menu.addAction(self.disconnect_action)
+        self._menu.addAction(self.disconnect_action)
 
-        menu.addSeparator()
+        self._menu.addSeparator()
 
-        settings_action = QAction("Configuración…")
-        settings_action.triggered.connect(self._show_settings)
-        menu.addAction(settings_action)
+        self.settings_action = QAction("Settings…")
+        self.settings_action.triggered.connect(self._show_settings)
+        self._menu.addAction(self.settings_action)
 
-        menu.addSeparator()
+        self._menu.addSeparator()
 
-        quit_action = QAction("Salir")
-        quit_action.triggered.connect(self._quit)
-        menu.addAction(quit_action)
+        self.quit_action = QAction("Quit")
+        self.quit_action.triggered.connect(self._quit)
+        self._menu.addAction(self.quit_action)
 
-        self.tray.setContextMenu(menu)
+        self.tray.setContextMenu(self._menu)
 
     def _update_icon(self) -> None:
         self.tray.setIcon(self._muted_icon if self.bridge.muted else self._base_icon)
-        self.mute_action.setText("Activar micrófono" if self.bridge.muted else "Silenciar micrófono")
+        self.mute_action.setText("Unmute microphone" if self.bridge.muted else "Mute microphone")
 
     def _update_disconnect_action(self) -> None:
         self.disconnect_action.setEnabled(bool(self.bridge.activeDevice))
