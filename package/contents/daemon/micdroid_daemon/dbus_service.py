@@ -294,6 +294,16 @@ class DaemonInterface(ServiceInterface):
         self._config.update(plain)
         return True
 
+    @method()
+    def GetConfig(self) -> "s":  # noqa: N802
+        """JSON-encoded string, same reasoning as ListDevices/GetStatus
+        above. Added for the standalone Qt tray app (see tray-app/), which
+        has no kcfg to read its own defaults from the way the plasmoid
+        does - it needs to be able to *read* the daemon's current config on
+        startup, not just push to it one-way like SetConfig always has.
+        """
+        return json.dumps(self._config.as_dict())
+
     # --- properties --------------------------------------------------
 
     @dbus_property(access=PropertyAccess.READ)
