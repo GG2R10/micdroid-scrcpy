@@ -6,3 +6,5 @@ __pycache__/
 *.plasmoid
 *.zip
 .claude/
+# ad-hoc debugging screenshots dropped in the repo root during live testing - not project assets
+helvum_screenshot_scrcpy_connected_to_default_sink.png
