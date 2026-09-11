@@ -1,37 +1,46 @@
 #!/bin/bash
-# Convenience installer for a git checkout. Just runs the same
-# contents/code/bootstrap.sh the widget itself runs on first load (works
-# identically whether it's called from here or from the installed plasmoid -
-# it resolves its own paths relative to itself), then installs/upgrades the
-# Plasma widget. No separate build system, matching the sibling
-# gamemode-status project's precedent.
+# Single entry point for both frontends - delegates to package/install.sh
+# (the Plasma widget) and/or tray-app/install.sh (the system-tray app)
+# rather than duplicating either one's logic. Both of those already call
+# package/contents/code/bootstrap.sh independently to set up the shared
+# daemon, so running either or both in any order is safe - the daemon only
+# actually gets (re)installed once regardless (see bootstrap.sh's own
+# version-check skip logic).
+#
+# Run non-interactively with an argument if you already know what you
+# want, e.g. from a script: ./install.sh widget | tray | both
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PLUGIN_ID="com.github.GG2R10.micdroid"
 
-echo "==> Setting up the backend (venv + systemd unit)"
-bash "$SCRIPT_DIR/package/contents/code/bootstrap.sh"
+install_widget() { bash "$SCRIPT_DIR/package/install.sh"; }
+install_tray() { bash "$SCRIPT_DIR/tray-app/install.sh"; }
 
-echo "==> Installing the Plasma widget"
-if kpackagetool6 -t Plasma/Applet -s "$PLUGIN_ID" >/dev/null 2>&1; then
-    kpackagetool6 -t Plasma/Applet -u "$SCRIPT_DIR/package/"
-else
-    kpackagetool6 -t Plasma/Applet -i "$SCRIPT_DIR/package/"
+choice="${1:-}"
+if [ -z "$choice" ]; then
+    cat <<'EOF'
+Micdroid - which frontend do you want to install?
+
+  1) KDE Plasma widget       - a panel/desktop widget (needs Plasma 6)
+  2) System tray app         - a standalone Qt app, tray icon like Discord/Steam
+  3) Both
+  4) Cancel
+
+Either way, this sets up the same shared background service - installing
+both is safe and doesn't duplicate anything.
+EOF
+    read -rp "> " reply
+    case "$reply" in
+        1|widget) choice="widget" ;;
+        2|tray) choice="tray" ;;
+        3|both) choice="both" ;;
+        *) echo "Cancelled."; exit 0 ;;
+    esac
 fi
 
-cat <<'EOF'
-
-==> Done.
-
-Next steps:
-  1. Add the "Micdroid" widget to a panel or the desktop - it starts its
-     own backend service on first load.
-  2. If you haven't already, pair your phone once from a terminal:
-         adb pair <phone-ip>:<pairing-port>
-     then use the widget's "Pair new device" (or "Connect by address" with
-     <phone-ip>:<port> from Settings > Developer options > Wireless
-     debugging) to finish connecting it.
-
-Logs:  journalctl --user -u micdroid.service -f
-EOF
+case "$choice" in
+    widget) install_widget ;;
+    tray) install_tray ;;
+    both) install_widget; echo; install_tray ;;
+    *) echo "usage: $0 [widget|tray|both]" >&2; exit 2 ;;
+esac
