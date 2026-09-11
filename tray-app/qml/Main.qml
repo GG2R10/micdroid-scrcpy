@@ -16,7 +16,7 @@ QQC2.ApplicationWindow {
     id: window
     title: i18n("Micdroid")
     width: popup.implicitWidth + 2 * Kirigami.Units.largeSpacing
-    height: popup.implicitHeight + 2 * Kirigami.Units.largeSpacing
+    height: popup.implicitHeight + 2 * Kirigami.Units.largeSpacing + settingsBar.height
     minimumWidth: width
     minimumHeight: height
 
@@ -29,6 +29,50 @@ QQC2.ApplicationWindow {
         close.accepted = false
         window.hide()
     }
+
+    // Reaching Settings (and fully quitting) each need their own entry
+    // point here, unlike the plasmoid: Plasma gives every widget a
+    // "Configure.../Remove" item on its own right-click menu for free, but
+    // a standalone window inherits nothing like that. main.py's tray icon
+    // *does* also have "Configuración..."/"Salir" menu items calling these
+    // same two signals, but that convention (right-click the tray icon)
+    // is easy to miss if you don't already know it - confirmed exactly
+    // that live: the user found no obvious way to reach either one before
+    // this bar existed, including no obvious way to fully quit rather
+    // than just hide the window with the [x] button above.
+    header: QQC2.ToolBar {
+        id: settingsBar
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: Kirigami.Units.smallSpacing
+            Item { Layout.fillWidth: true }
+            QQC2.ToolButton {
+                icon.name: "configure"
+                text: i18n("Settings")
+                display: QQC2.ToolButton.IconOnly
+                QQC2.ToolTip.text: i18n("Settings")
+                QQC2.ToolTip.visible: hovered
+                onClicked: window.openSettings()
+            }
+            QQC2.ToolButton {
+                icon.name: "application-exit"
+                text: i18n("Quit")
+                display: QQC2.ToolButton.IconOnly
+                QQC2.ToolTip.text: i18n("Quit Micdroid (also stops the background service)")
+                QQC2.ToolTip.visible: hovered
+                onClicked: window.quitRequested()
+            }
+        }
+    }
+
+    // main.py connects both of these directly to its own _show_settings()/
+    // _quit() (see TrayApp.__init__) - the tray menu's "Configuración..."/
+    // "Salir" actions call those same two Python methods too, so there's
+    // only one place that owns each one's actual behaviour (e.g. _quit()
+    // stopping the daemon service before exiting), regardless of which of
+    // the two entry points (these buttons, or the tray menu) fired.
+    signal openSettings()
+    signal quitRequested()
 
     Component.onCompleted: bridge.bootstrap()
 

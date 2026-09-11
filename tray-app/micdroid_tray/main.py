@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
-from PySide6.QtQml import QQmlApplicationEngine, QQmlComponent
+from PySide6.QtQml import QQmlApplicationEngine, QQmlComponent, QQmlEngine
 from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 from .bridge import DaemonBridge
@@ -97,8 +97,11 @@ class TrayApp:
         if not self.engine.rootObjects():
             raise RuntimeError("Main.qml failed to load - see stderr above for the QML error")
         self.main_window = self.engine.rootObjects()[0]
+        self.main_window.openSettings.connect(self._show_settings)
+        self.main_window.quitRequested.connect(self._quit)
 
         self._settings_window = None  # lazily created, see _show_settings()
+        self._settings_component = None  # must stay referenced too - see _show_settings()
 
         self._base_icon = QIcon(str(_ICON_PATH))
         self._muted_icon = _muted_icon(self._base_icon)
@@ -141,7 +144,7 @@ class TrayApp:
         menu.addSeparator()
 
         quit_action = QAction("Salir")
-        quit_action.triggered.connect(self.app.quit)
+        quit_action.triggered.connect(self._quit)
         menu.addAction(quit_action)
 
         self.tray.setContextMenu(menu)
@@ -170,15 +173,42 @@ class TrayApp:
             self.main_window.raise_()
             self.main_window.requestActivate()
 
+    def _quit(self) -> None:
+        # Per the user's explicit request: this app should quit like a
+        # normal self-contained program, not leave the daemon running
+        # headless in the background just because the tray icon is gone -
+        # unlike the plasmoid, which manages the same systemd unit
+        # independently of its own widget lifecycle and is expected to
+        # keep the daemon running across a panel/widget restart. If both
+        # frontends are ever run at once, quitting this one does stop the
+        # daemon out from under the plasmoid too - an accepted trade-off
+        # for "quitting this app means it's actually gone", not a bug.
+        self.bridge.stopService()
+        self.app.quit()
+
     def _show_settings(self) -> None:
         if self._settings_window is None:
-            component = QQmlComponent(self.engine, QUrl.fromLocalFile(str(_QML_DIR / "SettingsWindow.qml")))
-            self._settings_window = component.create()
+            # Keep the QQmlComponent itself alive too (self._settings_component,
+            # not just a local var) - confirmed live this was the actual bug the
+            # user hit: an object created via QQmlComponent.create() defaults to
+            # JavaScript ownership (per Qt/QML's own rules for dynamically
+            # created objects), so it gets garbage-collected by the QML engine
+            # almost immediately regardless of the Python-side reference in
+            # self._settings_window - "Configuración..." opened nothing,
+            # silently, because the window was already destroyed by the time
+            # .show() ran. QQmlEngine.setObjectOwnership(..., CppOwnership)
+            # below is the documented fix: it tells the engine Python/C++ owns
+            # this object's lifetime, not QML's JS garbage collector.
+            self._settings_component = QQmlComponent(
+                self.engine, QUrl.fromLocalFile(str(_QML_DIR / "SettingsWindow.qml"))
+            )
+            self._settings_window = self._settings_component.create()
             if self._settings_window is None:
                 # Surface the QML error instead of silently doing nothing -
                 # component.errorString() is the actual reason (e.g. a typo
                 # in a property binding), not just "it didn't work".
-                raise RuntimeError(f"SettingsWindow.qml failed to load: {component.errorString()}")
+                raise RuntimeError(f"SettingsWindow.qml failed to load: {self._settings_component.errorString()}")
+            QQmlEngine.setObjectOwnership(self._settings_window, QQmlEngine.CppOwnership)
         self._settings_window.show()
         self._settings_window.raise_()
         self._settings_window.requestActivate()
