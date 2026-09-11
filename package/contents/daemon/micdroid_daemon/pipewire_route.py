@@ -133,6 +133,22 @@ async def ensure_virtual_mic(sink_name: str, source_name: str,
 
 
 async def _find_scrcpy_sink_input() -> str | None:
+    """Returns the highest-numbered ("newest") sink-input id whose
+    `node.name` is "scrcpy", or None if there isn't one right now.
+
+    Newest, not first-seen: confirmed live 2026-09-10 that under rapid
+    successive default-sink changes, SDL doesn't always tear down the
+    previous generation of scrcpy's stream before the next one is already
+    up - so briefly, more than one "scrcpy"-named sink-input can exist at
+    once, an old one that's about to disappear and a new one that's
+    actually carrying live audio right now. Sink-input ids are PipeWire
+    object serials, which only ever increase for the life of the server, so
+    the highest id among matches is always the most recently created one -
+    picking the first match in listing order instead (the previous
+    behaviour) could "fix" the dying stream while leaving the live one
+    stuck on the wrong sink, which is exactly what was observed: a
+    move that logged success while the audibly-wrong stream stayed put.
+    """
     proc = await asyncio.create_subprocess_exec(
         "pactl", "list", "sink-inputs",
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
@@ -140,13 +156,15 @@ async def _find_scrcpy_sink_input() -> str | None:
     stdout, _ = await proc.communicate()
     text = stdout.decode(errors="replace")
     current_id: str | None = None
+    newest_id: str | None = None
     for line in text.splitlines():
         line = line.strip()
         if line.startswith("Sink Input #"):
             current_id = line.removeprefix("Sink Input #")
         elif line.startswith('node.name = "scrcpy"') and current_id is not None:
-            return current_id
-    return None
+            if newest_id is None or int(current_id) > int(newest_id):
+                newest_id = current_id
+    return newest_id
 
 
 async def route_scrcpy_to_sink(sink_name: str) -> bool:
@@ -197,16 +215,94 @@ async def watch_scrcpy_routing(sink_name: str) -> None:
     exited. `stdbuf -oL` forces line-buffering on that stdout and brought
     delivery back down to sub-second, matching a direct `pactl subscribe` on
     a terminal.
+
+    That fixed *latency per event*, but not *throughput under a burst* -
+    confirmed live 2026-09-10 with a second, worse bug: a single default-sink
+    change doesn't just recreate scrcpy's stream, it makes *every* client
+    (Firefox, Steam, the user's own AudioRelay loopback...) reconnect too,
+    producing a burst of 10-20+ `new`/`change`/`remove` events all at once.
+    The read loop used to `await` a whole find-with-retries-then-move cycle
+    per event, serially - so a burst backed up the pending events in the
+    pipe, and a correction that should've taken ~1s instead landed 46s
+    later in one measured case (and, in a worse case with more concurrent
+    reconnects than retry budget, effectively never - matching exactly what
+    the user reported: scrcpy stuck audibly on the new default with no
+    automatic recovery). Splitting the read loop from the actual
+    find+move work below fixes this: the loop never blocks on subprocess
+    work, so it drains the whole burst instantly, and a separate worker
+    coalesces however many "something changed" signals piled up into a
+    single fresh check once it's free.
     """
     proc = await asyncio.create_subprocess_exec(
         "stdbuf", "-oL", "pactl", "subscribe",
         stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
     )
+    log.info("routing watcher started (pid %s) for sink %r", proc.pid, sink_name)
+
+    needs_check = asyncio.Event()
+
+    async def _worker() -> None:
+        while True:
+            await needs_check.wait()
+            needs_check.clear()
+            try:
+                # Retry, not a single shot: confirmed live 2026-09-10 that
+                # `pactl list sink-inputs` run immediately after an event
+                # can still race the object not being listable yet. If
+                # more `needs_check` signals arrive *while* this is
+                # running, they're not lost - the Event is already set
+                # again by the time we loop back to `.wait()`, so we just
+                # run one more fresh check right away instead of once per
+                # signal (that per-signal serial approach is what caused
+                # the 46s-late correction above).
+                sink_input_id = None
+                for _attempt in range(6):
+                    sink_input_id = await _find_scrcpy_sink_input()
+                    if sink_input_id is not None:
+                        break
+                    await asyncio.sleep(0.2)
+                if sink_input_id is None:
+                    log.warning("routing watcher saw activity but never found scrcpy's "
+                                "stream to re-route (gave up after 6 attempts / ~1.2s)")
+                    continue
+                move = await asyncio.create_subprocess_exec(
+                    "pactl", "move-sink-input", sink_input_id, sink_name,
+                    stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
+                )
+                _, stderr = await move.communicate()
+                if move.returncode == 0:
+                    log.info("re-routed scrcpy sink-input %s -> %s (it followed a default-sink change)",
+                              sink_input_id, sink_name)
+                else:
+                    log.warning("re-route after default-sink change failed: %s",
+                                stderr.decode(errors="replace"))
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # Never let one bad iteration kill the worker for the rest
+                # of the session - log it and keep waiting for the next
+                # signal instead of silently stopping (which, before this,
+                # could only be noticed by reading the log for the
+                # *absence* of further activity).
+                log.exception("routing watcher's worker hit an unexpected error - "
+                               "still listening for the next event")
+
+    worker_task = asyncio.create_task(_worker(), name="routing-watch-worker")
     try:
         assert proc.stdout is not None
         while True:
             line = await proc.stdout.readline()
             if not line:
+                # pactl subscribe's stdout closed on its own - shouldn't
+                # happen while forwarding is active. Logged at WARNING
+                # (not silently falling out of the loop) specifically
+                # because a silent exit here is what would look like "the
+                # watcher stopped working" with nothing in the log to show
+                # why - confirmed live 2026-09-10 that without this, a dead
+                # watcher left no trace at all.
+                log.warning("routing watcher's pactl subscribe (pid %s) closed its "
+                            "output - watcher exiting, no more auto-reroutes for "
+                            "this session", proc.pid)
                 break
             text = line.decode(errors="replace")
             # Only 'new' events matter here: that's the signature of SDL
@@ -214,25 +310,20 @@ async def watch_scrcpy_routing(sink_name: str) -> None:
             # produces exactly one 'new' plus a later 'remove', not a
             # 'change'). Reacting to every 'change' too would just mean
             # redundant no-op moves, but there's no need for the noise.
-            if "'new'" not in text or "sink-input" not in text:
-                continue
-            sink_input_id = await _find_scrcpy_sink_input()
-            if sink_input_id is None:
-                continue
-            move = await asyncio.create_subprocess_exec(
-                "pactl", "move-sink-input", sink_input_id, sink_name,
-                stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE,
-            )
-            _, stderr = await move.communicate()
-            if move.returncode == 0:
-                log.info("re-routed scrcpy sink-input %s -> %s (it followed a default-sink change)",
-                          sink_input_id, sink_name)
-            else:
-                log.warning("re-route after default-sink change failed: %s",
-                            stderr.decode(errors="replace"))
+            # This check is deliberately cheap (a couple of substring
+            # tests, no subprocess) - all the actual work happens in
+            # _worker(), off this hot loop.
+            if "'new'" in text and "sink-input" in text:
+                needs_check.set()
     except asyncio.CancelledError:
         pass
     finally:
+        worker_task.cancel()
+        try:
+            await worker_task
+        except asyncio.CancelledError:
+            pass
+        log.info("routing watcher stopped (pid %s)", proc.pid)
         if proc.returncode is None:
             proc.terminate()
             try:
