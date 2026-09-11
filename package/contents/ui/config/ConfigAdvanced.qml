@@ -37,14 +37,14 @@ Kirigami.FormLayout {
     property string cfg_virtualSourceName: "VirtualMicSource"
     property string cfg_virtualSinkDescription: ""
     property string cfg_virtualSourceDescription: ""
-    property bool cfg_setAsDefaultSource: false
+    property bool cfg_setAsDefaultSource: true
     readonly property int cfg_audioSourceDefault: 0
     readonly property int cfg_audioCodecDefault: 0
     readonly property string cfg_virtualSinkNameDefault: "VirtualMicSink"
     readonly property string cfg_virtualSourceNameDefault: "VirtualMicSource"
     readonly property string cfg_virtualSinkDescriptionDefault: ""
     readonly property string cfg_virtualSourceDescriptionDefault: ""
-    readonly property bool cfg_setAsDefaultSourceDefault: false
+    readonly property bool cfg_setAsDefaultSourceDefault: true
 
     QQC2.CheckBox {
         id: autoStartCheck

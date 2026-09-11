@@ -35,13 +35,18 @@
     <entry name="virtualSourceDescription" type="String">
       <default></default>
     </entry>
-    <!-- Off by default - switches the system's default microphone to the
-         virtual one while forwarding, and restores whatever it was before
-         once forwarding stops. A real side effect (e.g. an unrelated app
-         querying the default mid-session), so opt-in like
-         autoStartOnKnownDevice below. -->
+    <!-- On by default (changed 2026-09-10, per user request - most people
+         installing this want the virtual mic to just be "the" microphone
+         while forwarding without an extra step) - switches the system's
+         default microphone to the virtual one while forwarding, and
+         restores whatever it was before once forwarding stops. Still a
+         real side effect worth knowing about (e.g. an unrelated app
+         querying the default mid-session), so it stays a normal checkbox
+         a user can turn back off, unlike autoStartOnKnownDevice below
+         which stays opt-in since it changes *when* forwarding starts at
+         all, not just where its audio ends up. -->
     <entry name="setAsDefaultSource" type="Bool">
-      <default>false</default>
+      <default>true</default>
     </entry>
     <entry name="autoStartOnKnownDevice" type="Bool">
       <default>false</default>

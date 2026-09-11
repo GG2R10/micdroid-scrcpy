@@ -35,7 +35,7 @@ Kirigami.FormLayout {
     readonly property string cfg_virtualSourceNameDefault: "VirtualMicSource"
     readonly property string cfg_virtualSinkDescriptionDefault: ""
     readonly property string cfg_virtualSourceDescriptionDefault: ""
-    readonly property bool cfg_setAsDefaultSourceDefault: false
+    readonly property bool cfg_setAsDefaultSourceDefault: true
 
     // Plasma's config-dialog loader seeds every kcfg entry's cfg_X (and
     // cfg_XDefault) property onto every loaded category page, regardless of
@@ -127,7 +127,7 @@ Kirigami.FormLayout {
     }
     QQC2.Label {
         Kirigami.FormData.isSection: true
-        text: i18n("Restores whatever was default before, once forwarding stops. Off by default since changing the system's default mic is a real side effect other apps could notice mid-session.")
+        text: i18n("Restores whatever was default before, once forwarding stops. On by default; turn it off if you'd rather select the microphone manually, since changing the system's default mic is a real side effect other apps could notice mid-session.")
         wrapMode: Text.WordWrap
         font.italic: true
     }

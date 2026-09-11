@@ -34,12 +34,15 @@ DEFAULTS: dict[str, Any] = {
     # "just use the name above".
     "virtualSinkDescription": "",
     "virtualSourceDescription": "",
-    # Opt-in, off by default - this changes the *system's* default
-    # microphone, a side effect real enough (e.g. it could affect an
-    # unrelated app that queries the default mid-session) that it shouldn't
-    # happen without the user asking for it, same reasoning as
-    # autoStartOnKnownDevice below.
-    "setAsDefaultSource": False,
+    # On by default (changed 2026-09-10, per user request) - most people
+    # installing this want the virtual mic to just work as "the" microphone
+    # while forwarding, without an extra step. Still a real side effect
+    # worth knowing about (it changes the *system's* default microphone,
+    # which an unrelated app could notice mid-session), so it stays a
+    # regular checkbox a user can turn back off - unlike
+    # autoStartOnKnownDevice below, which stays opt-in since it changes
+    # *when* forwarding starts at all, not just where its audio ends up.
+    "setAsDefaultSource": True,
     # Product decision: single global toggle, no per-device "primary" concept.
     "autoStartOnKnownDevice": False,
     # Reconnection state machine tuning (see state_machine.py).
