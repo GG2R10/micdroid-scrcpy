@@ -3,7 +3,7 @@
 <p align="center"><img src="assets/micdroid_icon_readme.png" width="128" height="128" alt="Micdroid icon"></p>
 
 <p align="center"><b>Use an Android phone's microphone as a PC microphone over adb/scrcpy, routed into a PipeWire virtual mic.</b><br>
-A free, unlimited-time alternative to AudioRelay/WoMic/AndroidMic, controlled from a KDE Plasma 6 widget.</p>
+A free, unlimited-time alternative to AudioRelay/WoMic/AndroidMic.</p>
 
 <p align="center">
   <img src="assets/mainpopup_screenshot.png" width="45%" alt="Device list popup">
@@ -11,21 +11,33 @@ A free, unlimited-time alternative to AudioRelay/WoMic/AndroidMic, controlled fr
   <img src="assets/pairingpopup_screenshot.png" width="45%" alt="Pairing popup">
 </p>
 
+## Two ways to use this
+
+Both talk to the exact same background service - pick whichever fits how you work, or
+install both (they don't conflict):
+
+- **[KDE Plasma widget](package/)** - lives in a panel or on the desktop, KDE-native.
+  The original, most-tested way to use this if you're on Plasma 6.
+- **[System tray app](tray-app/)** - a standalone Qt app with a tray icon, closer to how
+  Discord or Steam behave. Useful if you don't want a panel widget, or aren't running
+  Plasma at all (the tray icon needs a StatusNotifierItem host, which most modern
+  desktops provide, natively or via an extension). Newer and less battle-tested than the
+  widget so far.
+
 ## Features
 
 - Wireless or USB adb, low-latency mic forwarding via scrcpy
-- In-widget pairing (adb pairing code flow) - no terminal required for
-  everyday use
+- In-app pairing (adb pairing code flow) - no terminal required for everyday use
 - Auto-recovery when a device's wireless debugging port changes (a fresh
   connect attempt failing falls back to mDNS rediscovery automatically)
 - Mute toggle for the virtual mic, independent of the forwarding session
-- Configurable middle-click quick action on the panel icon (mute /
-  disconnect the active device / stop-start the backend), so right-click
-  stays the normal panel "Configure/Remove" menu
 - Multi-device aware: keeps a roster of every phone you've paired, one
   forwarding session active at a time
-- Dependency and backend-service health surfaced directly in the widget,
+- Dependency and backend-service health surfaced directly in the UI,
   with a one-click rescan/restart
+- Widget-only: configurable middle-click quick action on the panel icon (mute /
+  disconnect the active device / stop-start the backend), so right-click stays the
+  normal panel "Configure/Remove" menu
 
 ## Requirements
 
@@ -40,17 +52,17 @@ install for you**:
 - `avahi-browse` (optional) - only used as a fallback to rediscover a
   device's address when its wireless debugging port changes
 
-The widget checks for all of these on startup and tells you exactly which
+Either frontend checks for all of these on startup and tells you exactly which
 one is missing if any aren't found, with a one-click rescan once you've
 installed it.
 
-- KDE Plasma 6
 - Python 3.11+ (for the daemon's own private virtualenv, set up
   automatically - see below)
+- For the **Plasma widget**: KDE Plasma 6.
+- For the **tray app**: PySide6 (`sudo pacman -S python-pyside6` on Arch; your
+  distro's equivalent package, or `pip install PySide6`, elsewhere).
 
 ## Install
-
-### From a git checkout
 
 ```bash
 git clone https://github.com/GG2R10/micdroid-scrcpy.git
@@ -58,28 +70,44 @@ cd micdroid-scrcpy
 ./install.sh
 ```
 
-This sets up the backend (venv + systemd unit, same first-run bootstrap the
-widget itself runs - see above) and installs the Plasma widget. Then add
-"Micdroid" to a panel or the desktop.
+Asks which frontend you want (widget, tray app, or both) and sets up the shared
+backend (venv + systemd unit) either way. Non-interactive: `./install.sh widget`,
+`./install.sh tray`, or `./install.sh both`.
 
-### From the KDE Store
+### KDE Plasma widget only
 
-Search for "Micdroid" in Plasma's "Get New Widgets" dialog, install it, and
-add it to a panel. The widget bootstraps its own backend (venv + systemd
-unit) the first time it loads - no separate script to run. The very first
-load takes a few extra seconds while that happens (needs network access
-once, to fetch the two small Python packages above).
+```bash
+./package/install.sh
+```
 
-Uninstall with `./uninstall.sh` from a git checkout (leaves
-`~/.config/micdroid/` - your paired device roster and settings - untouched),
-or remove the widget from Plasma's widget list, then manually remove
-`~/.local/share/micdroid/` and `~/.config/systemd/user/micdroid.service` if
-you installed purely via the Store.
+or from the **KDE Store**: search for "Micdroid" in Plasma's "Get New Widgets" dialog,
+install it, and add it to a panel - it bootstraps its own backend the first time it
+loads, no separate script to run (the first load takes a few extra seconds while that
+happens, needing network access once).
+
+### Tray app only
+
+```bash
+./tray-app/install.sh
+```
+
+Adds an application-launcher entry and starts it at login (removable any time from
+System Settings → Autostart). See [tray-app/README.md](tray-app/README.md) for details.
+
+### Uninstall
+
+`./uninstall.sh` removes the backend, systemd unit, and the Plasma widget (leaves
+`~/.config/micdroid/` - your paired device roster and settings - untouched). If you also
+installed the tray app, remove its entries too:
+`rm ~/.local/share/applications/micdroid-tray.desktop ~/.config/autostart/micdroid-tray.desktop`.
+If you installed the widget purely via the KDE Store, remove it from Plasma's widget
+list, then manually remove `~/.local/share/micdroid/` and
+`~/.config/systemd/user/micdroid.service`.
 
 ## First-time device setup
 
 On your phone: Settings > Developer options > Wireless debugging > "Pair
-device with pairing code". In the widget, click **Pair new device** and
+device with pairing code". In either frontend, click **Pair new device** and
 enter the IP, pairing port, and 6-digit code it shows. The daemon runs
 `adb pair`, then tries to auto-discover the (separate) *connect* port via
 mDNS and finish connecting in one step.
@@ -94,14 +122,26 @@ device is unpaired on the phone (e.g. after a factory reset).
 
 ## Usage
 
+Both frontends show the same device list/pairing/mute UI - the difference is just how
+you get to it:
+
+**Plasma widget:**
 - **Left-click** the panel icon to open the popup.
 - **Middle-click** runs your configured quick action (Settings > Advanced) -
   mute is the default; disconnecting the active wireless device and
   stopping/starting the backend are the alternatives. Right-click keeps the
   normal Plasma panel context menu.
-- The switch in the popup header turns the backend service on/off; the
-  speaker icon next to it mutes/unmutes the virtual mic independently of
-  whether anything is actively forwarding.
+
+**Tray app:**
+- **Left-click** the tray icon to show/hide the window.
+- **Right-click** for mute/disconnect/quit shortcuts without opening the window.
+- The gear and exit buttons in the window's own toolbar reach Settings and Quit
+  directly (quitting also stops the background service - closing the window with its
+  `[x]` just hides it, same as Discord/Steam).
+
+In both: the switch in the header turns the backend service on/off; the speaker icon
+next to it mutes/unmutes the virtual mic independently of whether anything is actively
+forwarding.
 
 ## How it works
 
@@ -111,28 +151,43 @@ device is unpaired on the phone (e.g. after a factory reset).
 - A small Python daemon wraps scrcpy + adb: it tracks devices event-driven
   (`adb`'s `host:track-devices` protocol, no polling), spawns scrcpy per
   forwarding session, and moves its audio stream onto a PipeWire virtual mic
-  sink/source pair. It exposes all of this over a session D-Bus service.
-- The Plasma widget is a thin UI over that D-Bus service - list known
-  devices, pair/connect/start/stop forwarding, mute, see live status - with
-  no polling on the QML side either (it tails a small runtime event log the
-  daemon writes, gap-free even under rapid bursts of state changes).
+  sink/source pair. It exposes all of this over a session D-Bus service
+  (`org.micdroid.Daemon1`) - completely independent of either frontend, and of
+  Plasma specifically.
+- **Both frontends are thin UIs over that same D-Bus service** - list known
+  devices, pair/connect/start/stop forwarding, mute, see live status - and share
+  almost all of their actual interface code: the Plasma widget's QML views
+  ([`package/contents/ui/views/`](package/contents/ui/views/)) are used unmodified by
+  the tray app too (see [`tray-app/micdroid_tray/bridge.py`](tray-app/micdroid_tray/bridge.py)
+  for how). Neither polls - the widget tails a small runtime event log the daemon
+  writes, and the tray app subscribes to the daemon's real D-Bus signals - both
+  gap-free even under rapid bursts of state changes.
 
 ## What this installs and runs on your system
 
 Nothing here happens silently - this section is the complete list.
 
-**On first run** (automatically, whether you install via `install.sh` or add
-the widget from the KDE Store - see [Install](#install)):
+**On first run** (automatically, regardless of which frontend(s) you install - see
+[Install](#install)):
 
 - `~/.local/share/micdroid/venv/` - a private Python virtualenv holding the
   daemon and its two small dependencies, [`dbus-next`](https://pypi.org/project/dbus-next/)
   and [`zeroconf`](https://pypi.org/project/zeroconf/), fetched from PyPI
   (needs network access once).
 - `~/.config/systemd/user/micdroid.service` - a `systemd --user` unit for the
-  daemon. **Not enabled at login** - the widget starts/stops it on demand, so
-  it uses zero resources when the widget isn't in use.
+  daemon. **Not enabled at login** - a frontend starts/stops it on demand, so
+  it uses zero resources when neither is in use.
+
+**If you install the Plasma widget:**
 - The plasmoid package itself, wherever your install method puts widgets
   (typically `~/.local/share/plasma/plasmoids/com.github.GG2R10.micdroid/`).
+
+**If you install the tray app:**
+- `~/.local/share/applications/micdroid-tray.desktop` and a matching copy in
+  `~/.config/autostart/` (starts it quietly at login, like Discord/Steam - remove the
+  autostart copy any time to stop that without uninstalling the app itself).
+- No venv of its own - it runs against your system's Python + PySide6 package directly
+  (see [Requirements](#requirements)).
 
 **Created/used at runtime** (plain application state, not "installed"):
 
@@ -143,7 +198,8 @@ the widget from the KDE Store - see [Install](#install)):
   serial, last known address).
 - `$XDG_RUNTIME_DIR/micdroid/events.log` - a small log the daemon appends to
   and the widget tails to stay in sync live; truncated on every daemon start,
-  not meant to be read directly.
+  not meant to be read directly. (The tray app doesn't use this file - it gets the
+  same events over real D-Bus signals instead.)
 
 **External processes the daemon spawns while it's forwarding or acting on a
 command**: `adb` (pair/connect/shell), `scrcpy` (one instance per active
@@ -151,8 +207,9 @@ forwarding session), `pw-loopback` (only if a sink with your configured name
 doesn't already exist), `pactl` (routing and mute), `notify-send`
 (notifications), `avahi-browse` (mDNS reconnect fallback, optional).
 
-Uninstalling (`./uninstall.sh`) removes the venv, the systemd unit, and the
-widget, but leaves `~/.config/micdroid/` (your roster and settings) alone.
+Uninstalling (see [Uninstall](#uninstall)) removes the venv, the systemd unit, and
+whichever frontend(s) you had installed, but leaves `~/.config/micdroid/` (your roster
+and settings) alone.
 
 ## Development
 
@@ -168,6 +225,10 @@ upgrade an existing install), then `plasmawindowed com.github.GG2R10.micdroid`
 to open it standalone (`plasmoidviewer` from `plasma-sdk` also works, and
 reloads faster, if you install that package).
 
+For the tray app: `cd tray-app && python3 -m micdroid_tray.main` runs it directly
+against whatever daemon is already installed - no separate build step. See
+[tray-app/README.md](tray-app/README.md) for how its pieces fit together.
+
 ## Credits
 
 - [scrcpy](https://github.com/Genymobile/scrcpy) (Apache-2.0) does the
@@ -175,6 +236,8 @@ reloads faster, if you install that package).
 - `adb` is part of the Android Open Source Project (Apache-2.0).
 - [PipeWire](https://pipewire.org/) (MIT) provides the virtual microphone
   and audio routing.
+- [Qt](https://www.qt.io/) / [PySide6](https://pypi.org/project/PySide6/) (LGPL) power
+  the tray app frontend.
 
 ## License
 
