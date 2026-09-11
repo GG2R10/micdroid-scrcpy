@@ -1,0 +1,40 @@
+[project]
+name = "micdroid-tray"
+version = "0.1.0"
+description = "System-tray frontend for micdroid - use an Android phone's microphone as a PC microphone, routed into a PipeWire virtual mic via scrcpy/adb."
+requires-python = ">=3.11"
+dependencies = [
+    # PySide6 itself is deliberately not listed here - see ../README.md's
+    # Requirements section: it's meant to come from the system's own
+    # package manager (python-pyside6 on Arch), not get pulled in from
+    # PyPI, since it's a large binary wheel bundling its own Qt copy that a
+    # distro's own Qt-integrated PySide6 package avoids duplicating.
+]
+
+[project.scripts]
+# The actual entry point real installs (e.g. the micdroid-git AUR package)
+# use, instead of `python3 -m micdroid_tray.main` - see main.py's own
+# module docstring for why that form still works too (plain module
+# invocation from within a checkout, no install step).
+micdroid-tray = "micdroid_tray.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["micdroid_tray*"]
+
+[tool.setuptools.package-data]
+# qml/ and assets/ need to ship as real package data, not just .py files -
+# see main.py's _QML_DIR/_ICON_PATH comment for why both are resolved
+# relative to this package's own installed location. qml/views/ is a
+# symlink at the source level (into ../../../package/contents/ui/views/,
+# the plasmoid's shared popup views) - a source distribution or an
+# in-place `pip install -e .` follows it like any other directory, but a
+# *built* sdist/wheel (as `python -m build` produces, and as the
+# micdroid-git AUR PKGBUILD relies on) does not preserve symlinks - it
+# packs the symlink's *target content* as real files automatically, which
+# is exactly what's wanted here: the installed package ends up
+# self-contained, with no runtime dependency on any sibling directory.
+micdroid_tray = ["qml/**/*.qml", "qml/views/*.qml", "assets/*.png"]

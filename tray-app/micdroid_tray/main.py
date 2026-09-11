@@ -21,8 +21,19 @@ from PySide6.QtWidgets import QApplication, QMenu, QSystemTrayIcon
 
 from .bridge import DaemonBridge
 
-_TRAY_APP_DIR = Path(__file__).resolve().parent.parent
-_QML_DIR = _TRAY_APP_DIR / "qml"
+# Resolved relative to this package itself (not a sibling directory in some
+# assumed checkout layout) so both paths below work identically whether
+# this is running straight out of a git checkout or as a real installed
+# package (e.g. the micdroid-git AUR package) - confirmed live this
+# actually matters: the old `_TRAY_APP_DIR.parent`-based paths silently
+# resolved to nonsense once this became an installed site-packages module
+# instead of a checkout's tray-app/micdroid_tray/main.py. qml/ and assets/
+# are real subdirectories of this package now (qml/views/ is still a
+# symlink at the source level, into ../../../package/contents/ui/views/ -
+# see that directory's own note - but gets dereferenced into a real copy
+# when packaged, e.g. by the AUR PKGBUILD's package() step).
+_PACKAGE_DIR = Path(__file__).resolve().parent
+_QML_DIR = _PACKAGE_DIR / "qml"
 
 # The shared views (qml/views/, symlinked to ../../package/contents/ui/
 # views/) call the bare global `i18n(...)` throughout, same as main.qml and
@@ -57,7 +68,7 @@ _I18N_SHIM_JS = """
     };
 })()
 """
-_ICON_PATH = _TRAY_APP_DIR.parent / "assets" / "micdroid_icon_512.png"
+_ICON_PATH = _PACKAGE_DIR / "assets" / "micdroid_icon_512.png"
 
 
 def _muted_icon(base: QIcon) -> QIcon:

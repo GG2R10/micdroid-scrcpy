@@ -43,17 +43,30 @@ python3 -m micdroid_tray.main
 ## What's here
 
 - `micdroid_tray/bridge.py` — `DaemonBridge`, a `QObject` wrapping `PySide6.QtDBus` calls/
-  signals to the daemon, exposed to QML as the `bridge` context property.
+  signals to the daemon, exposed to QML as the `bridge` context property. Manages the
+  daemon's systemd unit too — via `package/contents/code/servicectl.sh` when running from
+  a checkout, or plain `systemctl --user` directly when installed as a real package (e.g.
+  the `micdroid-git` AUR package) and that script isn't there to find.
 - `micdroid_tray/devices_model.py` — `QAbstractListModel` backing the device list, role-
   compatible with the plasmoid's plain QML `ListModel`.
-- `micdroid_tray/main.py` — entry point: `QApplication`, the `QSystemTrayIcon` (left-click
-  toggles the window, right-click opens the menu — mute toggle, disconnect active device,
-  settings, quit), and the `QQmlApplicationEngine` hosting the QML below.
-- `qml/Main.qml` — the window, hosting the shared `MicdroidPopup.qml` content.
-- `qml/SettingsWindow.qml` — the one piece of UI that *isn't* shared with the plasmoid
-  (its config page uses kcfg, which doesn't apply here) — same fields, bound directly to
-  `bridge` properties instead.
-- `qml/views` — symlink to `../package/contents/ui/views`.
+- `micdroid_tray/main.py` — entry point (`micdroid-tray` console script once installed, or
+  `python3 -m micdroid_tray.main` from a checkout): `QApplication`, the `QSystemTrayIcon`
+  (left-click toggles the window, right-click opens the menu — mute toggle, disconnect
+  active device, settings, quit), and the `QQmlApplicationEngine` hosting the QML below.
+- `micdroid_tray/qml/Main.qml` — the window, hosting the shared `MicdroidPopup.qml` content.
+- `micdroid_tray/qml/SettingsWindow.qml` — the one piece of UI that *isn't* shared with the
+  plasmoid (its config page uses kcfg, which doesn't apply here) — same fields, bound
+  directly to `bridge` properties instead.
+- `micdroid_tray/qml/views` — symlink to `../../../package/contents/ui/views` **at the
+  source level only** - `qml/` (and `assets/`, the tray icon) live *inside* the
+  `micdroid_tray` package itself, not as siblings of it, specifically so a real build
+  (`python -m build`, as the `micdroid-git` AUR PKGBUILD does) can dereference that symlink
+  into real files and ship a self-contained package - confirmed live: the built wheel
+  contains all 6 shared views as regular files, and an installed copy (no checkout on disk
+  at all, tested via a scratch `--destdir` install run from an unrelated directory) starts
+  up and registers its tray icon correctly.
+- `pyproject.toml` — lets `tray-app/` be built as a proper package (`python -m build
+  --wheel`), for the AUR package; not needed to just run it from a checkout.
 
 ## Known trade-offs (v1)
 

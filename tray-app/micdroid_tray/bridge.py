@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
@@ -43,9 +44,14 @@ OBJECT_PATH = "/org/micdroid/Daemon"
 INTERFACE_NAME = "org.micdroid.Daemon1"
 
 # tray-app/micdroid_tray/bridge.py -> repo root -> package/contents/code/*.sh.
-# Reusing these directly (not copies) keeps the daemon-lifecycle logic - the
-# wait-for-name-owned race fix, the bootstrap version check, etc. - in
-# exactly one place for both frontends.
+# Only actually present when this is running from a git checkout (this
+# app's dev install.sh, or the plasmoid's own checkout) - reusing it there
+# keeps the daemon-lifecycle logic (the wait-for-name-owned race fix, the
+# bootstrap version check, etc.) in exactly one place for both frontends.
+# A real installed package (e.g. the micdroid-git AUR package) has no such
+# file anywhere near wherever site-packages put this one, which
+# _run_servicectl() below uses as the signal to fall back to managing the
+# systemd unit directly instead - see its docstring.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CODE_DIR = _REPO_ROOT / "package" / "contents" / "code"
 SERVICECTL = _CODE_DIR / "servicectl.sh"
@@ -439,18 +445,70 @@ class DaemonBridge(QObject):
 
     # --- systemd service lifecycle, same names as main.qml's ------------
 
+    def _wait_for_name_owned(self, timeout: float = 6.0) -> bool:
+        """Pure-Python port of servicectl.sh's wait_for_name_owned() - only
+        used by the systemctl fallback below, for the exact same reason
+        that function exists: systemctl reporting a unit "started" only
+        means systemd handed the process off, not that the daemon has
+        actually claimed org.micdroid.Daemon1 on the bus yet.
+        """
+        bus_iface = QDBusInterface("org.freedesktop.DBus", "/org/freedesktop/DBus",
+                                    "org.freedesktop.DBus", QDBusConnection.sessionBus())
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            reply = bus_iface.call("NameHasOwner", BUS_NAME)
+            args = reply.arguments()
+            if args and bool(args[0]):
+                return True
+            time.sleep(0.2)
+        return False
+
     def _run_servicectl(self, *args: str) -> bool:
+        if SERVICECTL.is_file():
+            try:
+                proc = subprocess.run(
+                    ["bash", str(SERVICECTL), *args],
+                    capture_output=True, text=True, timeout=15,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                self._set_last_error(str(exc))
+                return False
+            if proc.returncode != 0:
+                self._set_last_error(proc.stderr.strip() or f"servicectl.sh {' '.join(args)} failed")
+            return proc.returncode == 0
+
+        # No servicectl.sh next to this file at all - meaning this isn't a
+        # checkout, it's a real installed package (e.g. the micdroid-git
+        # AUR package). There's nothing to bootstrap in that case: the
+        # daemon's dependencies are plain system packages and its unit
+        # already lives in /usr/lib/systemd/user/, both put there by
+        # pacman itself - so just manage the unit directly instead of
+        # looking for a script that was never installed to begin with.
+        action = {"ensure-running": "start", "restart": "restart", "stop": "stop"}[args[0]]
+        if args[0] == "ensure-running":
+            already_active = subprocess.run(
+                ["systemctl", "--user", "is-active", "--quiet", "micdroid.service"]
+            ).returncode == 0
+            if already_active and self._wait_for_name_owned(timeout=1.0):
+                return True
         try:
             proc = subprocess.run(
-                ["bash", str(SERVICECTL), *args],
+                ["systemctl", "--user", action, "micdroid.service"],
                 capture_output=True, text=True, timeout=15,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             self._set_last_error(str(exc))
             return False
         if proc.returncode != 0:
-            self._set_last_error(proc.stderr.strip() or f"servicectl.sh {' '.join(args)} failed")
-        return proc.returncode == 0
+            self._set_last_error(proc.stderr.strip() or f"systemctl {action} micdroid.service failed")
+            return False
+        if action == "stop":
+            return True
+        if not self._wait_for_name_owned():
+            self._set_last_error(f"micdroid.service {action}ed but never claimed {BUS_NAME} - "
+                                  "check journalctl --user -u micdroid.service")
+            return False
+        return True
 
     @Slot()
     @Slot("QJSValue")
