@@ -97,8 +97,10 @@ class TrayApp:
         if not self.engine.rootObjects():
             raise RuntimeError("Main.qml failed to load - see stderr above for the QML error")
         self.main_window = self.engine.rootObjects()[0]
-        self.main_window.openSettings.connect(self._show_settings)
-        self.main_window.quitRequested.connect(self._quit)
+        # Settings and Quit are reachable only from the tray menu below
+        # (_build_menu()'s settings_action/quit_action) - deliberately not
+        # duplicated as buttons in Main.qml, to keep that window's look as
+        # close as possible to the plasmoid's popup.
 
         self._settings_window = None  # lazily created, see _show_settings()
         self._settings_component = None  # must stay referenced too - see _show_settings()
