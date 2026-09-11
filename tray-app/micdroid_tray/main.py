@@ -23,6 +23,40 @@ from .bridge import DaemonBridge
 
 _TRAY_APP_DIR = Path(__file__).resolve().parent.parent
 _QML_DIR = _TRAY_APP_DIR / "qml"
+
+# The shared views (qml/views/, symlinked to ../../package/contents/ui/
+# views/) call the bare global `i18n(...)` throughout, same as main.qml and
+# this app's own Main.qml/SettingsWindow.qml - confirmed live (via two
+# screenshots the user took: button/label text rendering as entirely
+# blank, while literal, non-i18n()-wrapped strings like PairingView.qml's
+# "192.168.1.42" placeholder rendered fine) that a plain
+# QQmlApplicationEngine has no such function at all. Inside plasmashell,
+# `i18n` is injected automatically by Plasma/KDeclarative's own QML
+# environment setup - a standalone PySide6 engine gets none of that, so
+# every `i18n("...")` call was silently evaluating to `undefined`
+# (QML doesn't throw on a call to a genuinely undefined bare identifier in
+# a binding - the property just ends up empty). Registering a shim
+# function as a real global (via QJSEngine.globalObject(), not a context
+# property - a context property would only be reachable as a *named*
+# object, not as a bare callable identifier) fixes every call site at once
+# without touching the shared QML - real translation support (.po files,
+# KI18n) is out of scope here since the plasmoid doesn't have any either.
+_I18N_SHIM_JS = """
+(function() {
+    function subst(str, args) {
+        var s = String(str);
+        for (var i = 0; i < args.length; i++) {
+            s = s.split("%" + (i + 1)).join(String(args[i]));
+        }
+        return s;
+    }
+    return function() {
+        var args = Array.prototype.slice.call(arguments);
+        var str = args.shift();
+        return subst(str, args);
+    };
+})()
+"""
 _ICON_PATH = _TRAY_APP_DIR.parent / "assets" / "micdroid_icon_512.png"
 
 
@@ -55,6 +89,10 @@ class TrayApp:
 
         self.engine = QQmlApplicationEngine()
         self.engine.rootContext().setContextProperty("bridge", self.bridge)
+        # Must happen before loading any QML - see _I18N_SHIM_JS's comment
+        # above for why this is needed at all.
+        i18n_fn = self.engine.evaluate(_I18N_SHIM_JS)
+        self.engine.globalObject().setProperty("i18n", i18n_fn)
         self.engine.load(QUrl.fromLocalFile(str(_QML_DIR / "Main.qml")))
         if not self.engine.rootObjects():
             raise RuntimeError("Main.qml failed to load - see stderr above for the QML error")
