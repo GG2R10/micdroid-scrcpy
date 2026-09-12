@@ -19,10 +19,7 @@ install both (they don't conflict):
 - **[KDE Plasma widget](package/)** - lives in a panel or on the desktop, KDE-native.
   The original, most-tested way to use this if you're on Plasma 6.
 - **[System tray app](tray-app/)** - a standalone Qt app with a tray icon, closer to how
-  Discord or Steam behave. Useful if you don't want a panel widget, or aren't running
-  Plasma at all (the tray icon needs a StatusNotifierItem host, which most modern
-  desktops provide, natively or via an extension). Newer and less battle-tested than the
-  widget so far.
+  Discord or Steam behave (StatusNotifierItem Host required).
 
 ## Features
 
@@ -39,7 +36,8 @@ install both (they don't conflict):
   disconnect the active device / stop-start the backend), so right-click stays the
   normal panel "Configure/Remove" menu
 
-## Requirements
+<details>
+<summary><strong>Requirements</strong></summary>
 
 Already-installed system tools this project depends on **but does not
 install for you**:
@@ -62,6 +60,8 @@ installed it.
 - For the **tray app**: PySide6 (`sudo pacman -S python-pyside6` on Arch; your
   distro's equivalent package, or `pip install PySide6`, elsewhere).
 
+</details>
+
 ## Install
 
 ```bash
@@ -81,7 +81,8 @@ cd micdroid-scrcpy
 ./install.sh
 ```
 
-### KDE Plasma widget only
+<details>
+<summary><strong>KDE Plasma widget only</strong></summary>
 
 ```bash
 ./package/install.sh
@@ -92,7 +93,10 @@ install it, and add it to a panel - it bootstraps its own backend the first time
 loads, no separate script to run (the first load takes a few extra seconds while that
 happens, needing network access once).
 
-### Tray app only
+</details>
+
+<details>
+<summary><strong>Tray app only</strong></summary>
 
 ```bash
 ./tray-app/install.sh
@@ -101,7 +105,10 @@ happens, needing network access once).
 Adds an application-launcher entry and starts it at login (removable any time from
 System Settings → Autostart). See [tray-app/README.md](tray-app/README.md) for details.
 
-### Uninstall
+</details>
+
+<details>
+<summary><strong>Uninstall</strong></summary>
 
 `./uninstall.sh` removes the backend, systemd unit, and the Plasma widget (leaves
 `~/.config/micdroid/` - your paired device roster and settings - untouched). If you also
@@ -112,6 +119,8 @@ list, then manually remove `~/.local/share/micdroid/` and
 `~/.config/systemd/user/micdroid.service`. If you used the `curl | bash` one-liner,
 `./uninstall.sh` there is this same script, at `~/.local/share/micdroid-scrcpy/uninstall.sh` -
 remove that whole directory afterward too, once you're done, to drop the checkout itself.
+
+</details>
 
 ## First-time device setup
 
@@ -134,23 +143,14 @@ device is unpaired on the phone (e.g. after a factory reset).
 Both frontends show the same device list/pairing/mute UI - the difference is just how
 you get to it:
 
-**Plasma widget:**
-- **Left-click** the panel icon to open the popup.
-- **Middle-click** runs your configured quick action (Settings > Advanced) -
-  mute is the default; disconnecting the active wireless device and
-  stopping/starting the backend are the alternatives. Right-click keeps the
-  normal Plasma panel context menu.
+- **Plasma widget:** left-click opens the popup; middle-click runs your quick action
+  (Settings > Advanced - mute by default); right-click keeps Plasma's normal panel menu.
+- **Tray app:** left-click shows/hides the window; right-click opens a menu for
+  mute/disconnect/Settings/Quit (quitting also stops the background service - the
+  window's own `[x]` just hides it, same as Discord/Steam).
 
-**Tray app:**
-- **Left-click** the tray icon to show/hide the window.
-- **Right-click** for mute/disconnect/quit shortcuts without opening the window.
-- The gear and exit buttons in the window's own toolbar reach Settings and Quit
-  directly (quitting also stops the background service - closing the window with its
-  `[x]` just hides it, same as Discord/Steam).
-
-In both: the switch in the header turns the backend service on/off; the speaker icon
-next to it mutes/unmutes the virtual mic independently of whether anything is actively
-forwarding.
+Both: the header switch turns the backend service on/off; the speaker icon next to it
+mutes/unmutes independently of whether anything's actively forwarding.
 
 ## How it works
 
@@ -196,7 +196,7 @@ Nothing here happens silently - this section is the complete list.
   `~/.config/autostart/` (starts it quietly at login, like Discord/Steam - remove the
   autostart copy any time to stop that without uninstalling the app itself).
 - No venv of its own - it runs against your system's Python + PySide6 package directly
-  (see [Requirements](#requirements)).
+  (see Requirements above).
 
 **Created/used at runtime** (plain application state, not "installed"):
 
@@ -216,11 +216,12 @@ forwarding session), `pw-loopback` (only if a sink with your configured name
 doesn't already exist), `pactl` (routing and mute), `notify-send`
 (notifications), `avahi-browse` (mDNS reconnect fallback, optional).
 
-Uninstalling (see [Uninstall](#uninstall)) removes the venv, the systemd unit, and
+Uninstalling (see Uninstall above) removes the venv, the systemd unit, and
 whichever frontend(s) you had installed, but leaves `~/.config/micdroid/` (your roster
 and settings) alone.
 
-## Development
+<details>
+<summary><strong>Development</strong></summary>
 
 ```bash
 cd package/contents/daemon
@@ -237,6 +238,8 @@ reloads faster, if you install that package).
 For the tray app: `cd tray-app && python3 -m micdroid_tray.main` runs it directly
 against whatever daemon is already installed - no separate build step. See
 [tray-app/README.md](tray-app/README.md) for how its pieces fit together.
+
+</details>
 
 ## Credits
 
