@@ -13,3 +13,4 @@ __pycache__/
 # ad-hoc debugging screenshots dropped in the repo root during live testing - not project assets
 helvum_screenshot_scrcpy_connected_to_default_sink.png
 ucs-git/  # reference project the user cloned locally for PKGBUILD guidance, not part of this repo
+PACKAGING.md  # internal note on the sibling micdroid-git AUR repo's assumptions - local only, not meant for the remote
