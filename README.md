@@ -89,6 +89,7 @@ cd micdroid-scrcpy
 
 <details>
 <summary><strong>AUR Tray Application (No Widget)</strong></summary>
+  
 You can install the latest git app  version with any AUR Helper: `micdroid-git`
 </details>
 
