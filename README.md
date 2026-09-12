@@ -66,6 +66,9 @@ installed it.
 
 <details>
 <summary><strong>Script</strong></summary>
+
+You can directly use the script and select how you want to install: 
+  
 ```bash
 curl -fsSL https://raw.githubusercontent.com/GG2R10/micdroid-scrcpy/master/install.sh | bash
 ```
