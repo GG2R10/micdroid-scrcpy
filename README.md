@@ -64,6 +64,8 @@ installed it.
 
 ## Install
 
+<details>
+<summary><strong>Script</strong></summary>
 ```bash
 curl -fsSL https://raw.githubusercontent.com/GG2R10/micdroid-scrcpy/master/install.sh | bash
 ```
@@ -80,18 +82,26 @@ git clone https://github.com/GG2R10/micdroid-scrcpy.git
 cd micdroid-scrcpy
 ./install.sh
 ```
+</details>
+
+<details>
+<summary><strong>AUR Tray Application (No Widget)</strong></summary>
+You can install the latest git app  version with any AUR Helper: `micdroid-git`
+</details>
 
 <details>
 <summary><strong>KDE Plasma widget only</strong></summary>
 
-```bash
-./package/install.sh
-```
-
-or from the **KDE Store**: search for "Micdroid" in Plasma's "Get New Widgets" dialog,
+**KDE Store**: search for "Micdroid" in Plasma's "Get New Widgets" dialog,
 install it, and add it to a panel - it bootstraps its own backend the first time it
 loads, no separate script to run (the first load takes a few extra seconds while that
 happens, needing network access once).
+
+**Manual**: Clone the repo and: 
+
+```bash
+./package/install.sh
+```
 
 </details>
 
