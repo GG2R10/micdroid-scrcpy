@@ -1,5 +1,7 @@
 import QtQuick
+import QtQuick.Window
 import QtQuick.Shapes
+import QtQuick.Effects
 import org.kde.kirigami as Kirigami
 import "../anim" as Anim
 
@@ -46,36 +48,37 @@ Item {
         }
     }
 
-    Kirigami.Icon {
+    // The source SVG is solid white/near-white - invisible on a light panel
+    // theme, and Kirigami.Icon's isMask/color tinting turned out not to
+    // apply reliably for a plain file URL inside the panel (the custom
+    // colors below showed up white). Tinting through MultiEffect
+    // (colorization: 1 replaces the RGB with the given color, keeping the
+    // alpha) works the same on any theme and with opacity animation.
+    Image {
         id: icon
         anchors.fill: parent
         anchors.margins: Math.max(1, Math.round(parent.width * 0.1))
         source: Qt.resolvedUrl("../../icons/micdroid.svg")
-        // The source SVG is solid white/near-white - invisible on a light
-        // panel theme (confirmed by rendering it on a white background).
-        // isMask treats it as an alpha mask and recolors it with `color`
-        // below instead, the standard technique Breeze's own "symbolic"
-        // panel icons use - so it stays visible and theme-correct on both
-        // light and dark panels. Its 3-tone shading (fff/e3e3e3/c2c2c2) was
-        // subtle enough that flattening it to one color barely changes how
-        // it looks.
-        isMask: true
+        sourceSize: Qt.size(width * Screen.devicePixelRatio, height * Screen.devicePixelRatio)
+        fillMode: Image.PreserveAspectFit
+        smooth: true
+        mipmap: true
 
-        // Mute indicator: the icon's own tint turns red while muted - a
-        // plain static color, no pulsing (tried breathing first, per
-        // request simplified to just the color swap) - independent of
-        // whatever the connection-active indicator below is doing (a
-        // different Item, a different property) - the two need to be able
-        // to run at once (you can mute while forwarding), so they're
-        // deliberately on separate visual channels rather than both
-        // fighting over, say, the ring's color.
+        // Mute indicator: red tint while muted. Independent of the
+        // connection indicator (separate channel) so both can show at once.
         readonly property color themeColor: Kirigami.Theme.textColor
-        color: compact.muted ? "#e74c3c"
+        readonly property color tint: compact.muted ? "#e74c3c"
              : (compact.isForwarding && compact.connectionAnimationStyle === 2) ? compact.connectionColor
              : themeColor
         // Style 2 only: breathe while in continuous mode (static otherwise).
         opacity: (anim.continuous && compact.connectionAnimationStyle === 2 && !compact.muted)
                  ? 0.55 + 0.45 * anim.wave(2000) : 1
+
+        layer.enabled: true
+        layer.effect: MultiEffect {
+            colorization: 1.0
+            colorizationColor: icon.tint
+        }
     }
 
     Anim.AnimationController {
@@ -154,11 +157,13 @@ Item {
 
         Rectangle {
             visible: compact.connectionAnimationStyle === 1
-            width: Math.max(5, parent.height * 0.24)
+            width: Math.max(4, parent.height * 0.18)
             height: width
             radius: width / 2
             anchors.right: parent.right
             anchors.top: parent.top
+            anchors.rightMargin: Math.max(1, Math.round(parent.width * 0.07))
+            anchors.topMargin: Math.max(1, Math.round(parent.height * 0.07))
             color: compact.connectionColor
             opacity: activeIndicator.breathe
         }
