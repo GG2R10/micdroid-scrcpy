@@ -78,7 +78,9 @@ class Config:
             log.warning("could not read %s, using defaults: %s", CONFIG_FILE, exc)
             return
         for key in DEFAULTS:
-            if key in on_disk:
+            # Ignore values of the wrong type (e.g. a literal "undefined"
+            # pushed by a widget whose settings failed to load).
+            if key in on_disk and isinstance(on_disk[key], type(DEFAULTS[key])):
                 self._values[key] = on_disk[key]
 
     def save(self) -> None:
@@ -93,6 +95,9 @@ class Config:
         for key, value in partial.items():
             if key not in DEFAULTS:
                 log.debug("ignoring unknown config key %r", key)
+                continue
+            if not isinstance(value, type(DEFAULTS[key])):
+                log.warning("ignoring config %r: bad value %r", key, value)
                 continue
             if self._values.get(key) != value:
                 self._values[key] = value
