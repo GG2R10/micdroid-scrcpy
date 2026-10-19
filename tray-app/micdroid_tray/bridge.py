@@ -65,7 +65,7 @@ AUDIO_SOURCE_OPTIONS = ["mic", "mic-voice-communication", "mic-unprocessed", "mi
 AUDIO_CODEC_OPTIONS = ["raw", "opus", "aac", "flac"]
 
 _CONFIG_KEYS = [
-    "audioSource", "audioCodec", "virtualSinkName", "virtualSourceName",
+    "audioSource", "audioCodec", "audioBufferMsWireless", "virtualSinkName", "virtualSourceName",
     "virtualSinkDescription", "virtualSourceDescription", "setAsDefaultSource",
     "autoStartOnKnownDevice", "probeIntervalSec", "maxReconnectAttempts",
     "reconnectBackoffSec", "adbPath", "scrcpyPath",
@@ -185,7 +185,7 @@ class DaemonBridge(QObject):
 
     audioSource = Property(str, lambda self: self._config_get("audioSource", "mic"),
                             lambda self, v: self._config_set("audioSource", v), notify=configChanged)
-    audioCodec = Property(str, lambda self: self._config_get("audioCodec", "raw"),
+    audioCodec = Property(str, lambda self: self._config_get("audioCodec", "opus"),
                            lambda self, v: self._config_set("audioCodec", v), notify=configChanged)
     virtualSinkName = Property(str, lambda self: self._config_get("virtualSinkName", "VirtualMicSink"),
                                 lambda self, v: self._config_set("virtualSinkName", v), notify=configChanged)
@@ -199,6 +199,8 @@ class DaemonBridge(QObject):
                                    lambda self, v: self._config_set("setAsDefaultSource", v), notify=configChanged)
     autoStartOnKnownDevice = Property(bool, lambda self: bool(self._config_get("autoStartOnKnownDevice", False)),
                                        lambda self, v: self._config_set("autoStartOnKnownDevice", v), notify=configChanged)
+    audioBufferMsWireless = Property(int, lambda self: int(self._config_get("audioBufferMsWireless", 200)),
+                                      lambda self, v: self._config_set("audioBufferMsWireless", v), notify=configChanged)
     probeIntervalSec = Property(int, lambda self: int(self._config_get("probeIntervalSec", 15)),
                                  lambda self, v: self._config_set("probeIntervalSec", v), notify=configChanged)
     maxReconnectAttempts = Property(int, lambda self: int(self._config_get("maxReconnectAttempts", 5)),

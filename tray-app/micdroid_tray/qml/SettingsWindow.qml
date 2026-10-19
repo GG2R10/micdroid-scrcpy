@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
@@ -28,6 +29,7 @@ QQC2.ApplicationWindow {
 
             Kirigami.Heading {
                 Kirigami.FormData.isSection: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 25
                 level: 4
                 text: i18n("Audio")
             }
@@ -49,12 +51,28 @@ QQC2.ApplicationWindow {
                 Kirigami.FormData.label: i18n("Audio codec:")
                 model: [
                     i18n("Raw PCM (best quality, more bandwidth)"),
-                    i18n("Opus"),
+                    i18n("Opus (recommended - low bandwidth)"),
                     i18n("AAC"),
                     i18n("FLAC")
                 ]
                 currentIndex: bridge.audioCodecOptions.indexOf(bridge.audioCodec)
                 onActivated: (index) => bridge.audioCodec = bridge.audioCodecOptions[index]
+            }
+
+            QQC2.SpinBox {
+                Kirigami.FormData.label: i18n("Wireless audio buffer (ms):")
+                from: 20
+                to: 1000
+                stepSize: 50
+                value: bridge.audioBufferMsWireless
+                onValueModified: bridge.audioBufferMsWireless = value
+            }
+            QQC2.Label {
+                Kirigami.FormData.isSection: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 25
+                text: i18n("Larger values smooth over Wi-Fi jitter (fewer audio cuts) at the cost of added latency. USB always uses the low-latency default. Applies the next time forwarding starts.")
+                wrapMode: Text.WordWrap
+                font.italic: true
             }
 
             QQC2.TextField {
