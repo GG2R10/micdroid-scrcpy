@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
@@ -59,6 +60,7 @@ Kirigami.FormLayout {
     }
     QQC2.Label {
         Kirigami.FormData.isSection: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 25
         text: i18n("Applies to any already-paired device that becomes reachable, subject to the one-active-session-at-a-time limit. Off by default so the microphone never activates without you asking.")
         wrapMode: Text.WordWrap
         font.italic: true
@@ -109,6 +111,7 @@ Kirigami.FormLayout {
     }
     QQC2.Label {
         Kirigami.FormData.isSection: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 25
         text: i18n("Runs immediately, without opening the popup. Right-click still opens the normal \"Configure/Remove\" menu.")
         wrapMode: Text.WordWrap
         font.italic: true

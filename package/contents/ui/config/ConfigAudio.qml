@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Layouts
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
 
@@ -99,6 +100,7 @@ Kirigami.FormLayout {
     }
     QQC2.Label {
         Kirigami.FormData.isSection: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 25
         text: i18n("Larger values smooth over Wi-Fi jitter (fewer audio cuts) at the cost of added latency. USB always uses scrcpy's low-latency default. Applies the next time forwarding starts.")
         wrapMode: Text.WordWrap
         font.italic: true
@@ -116,6 +118,7 @@ Kirigami.FormLayout {
 
     QQC2.Label {
         Kirigami.FormData.isSection: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 25
         text: i18n("If a PipeWire sink with this name already exists (for example your own loopback setup), micdroid reuses it instead of creating a new one.")
         wrapMode: Text.WordWrap
         font.italic: true
@@ -135,6 +138,7 @@ Kirigami.FormLayout {
 
     QQC2.Label {
         Kirigami.FormData.isSection: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 25
         text: i18n("This is what apps like Discord actually show in their microphone picker - leave empty to just reuse the name above. Only applies when micdroid creates the sink/source itself; has no effect if one with that name already exists (see above), since PipeWire has no way to rename an existing node's description.")
         wrapMode: Text.WordWrap
         font.italic: true
@@ -147,6 +151,7 @@ Kirigami.FormLayout {
     }
     QQC2.Label {
         Kirigami.FormData.isSection: true
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 25
         text: i18n("Restores whatever was default before, once forwarding stops. On by default; turn it off if you'd rather select the microphone manually, since changing the system's default mic is a real side effect other apps could notice mid-session.")
         wrapMode: Text.WordWrap
         font.italic: true

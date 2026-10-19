@@ -55,7 +55,7 @@ Kirigami.FormLayout {
         Layout.minimumWidth: Kirigami.Units.gridUnit * 18
         Kirigami.FormData.label: i18n("Active connection indicator:")
         // Index order must match CompactView.qml's connectionAnimationStyle.
-        model: [i18n("Rotating arc"), i18n("Breathing ring"), i18n("Double comet")]
+        model: [i18n("Breathing ring"), i18n("Breathing dot"), i18n("Breathing icon (green)"), i18n("Rotating quad comet")]
     }
 
     QQC2.ComboBox {
