@@ -8,10 +8,10 @@ QtObject {
     readonly property var fpsValues: [12, 24, 30, 60, 0]
     readonly property var fpsLabels: [
         qsTr("12 fps (lowest cost)"), qsTr("24 fps"), qsTr("30 fps (recommended)"),
-        qsTr("60 fps"), qsTr("Native (follows display; highest cost)")
+        qsTr("60 fps"), qsTr("Native refresh rate (highest cost)")
     ]
     readonly property var modeLabels: [
-        qsTr("Static - animate only on state changes"),
+        qsTr("Static (animate on changes only)"),
         qsTr("Continuous while active")
     ]
 }

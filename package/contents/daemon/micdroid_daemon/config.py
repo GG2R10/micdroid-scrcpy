@@ -21,7 +21,7 @@ CONFIG_FILE = CONFIG_DIR / "config.json"
 DEFAULTS: dict[str, Any] = {
     # scrcpy audio options - see `scrcpy --list-audio-sources` / doc/audio.md
     "audioSource": "mic",
-    "audioCodec": "raw",
+    "audioCodec": "opus",
     # scrcpy --audio-buffer (ms). scrcpy's own default (50) is tuned for USB;
     # wireless adb delivers audio in bursts and underruns (audible cuts)
     # unless the buffer rides out the jitter. Separate values per transport.

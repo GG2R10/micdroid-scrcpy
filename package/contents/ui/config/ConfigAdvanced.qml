@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
-import "../anim" as Anim
 
 Kirigami.FormLayout {
     id: page
@@ -19,9 +18,9 @@ Kirigami.FormLayout {
     property alias cfg_adbPath: adbPathField.text
     property alias cfg_scrcpyPath: scrcpyPathField.text
     property alias cfg_quickAction: quickActionCombo.currentIndex
-    property alias cfg_connectionAnimationStyle: connectionAnimationCombo.currentIndex
-    property alias cfg_animationMode: animationModeCombo.currentIndex
-    property alias cfg_animationFps: animationFpsCombo.currentIndex
+    property int cfg_connectionAnimationStyle: 0
+    property int cfg_animationMode: 0
+    property int cfg_animationFps: 2
     readonly property int cfg_animationModeDefault: 0
     readonly property int cfg_animationFpsDefault: 2
     property int cfg_audioBufferMsWireless: 200
@@ -39,14 +38,14 @@ Kirigami.FormLayout {
     // comment on why every page needs every cfg_ property to exist, even
     // ones it doesn't present UI for.
     property int cfg_audioSource: 0
-    property int cfg_audioCodec: 0
+    property int cfg_audioCodec: 1
     property string cfg_virtualSinkName: "VirtualMicSink"
     property string cfg_virtualSourceName: "VirtualMicSource"
     property string cfg_virtualSinkDescription: ""
     property string cfg_virtualSourceDescription: ""
     property bool cfg_setAsDefaultSource: true
     readonly property int cfg_audioSourceDefault: 0
-    readonly property int cfg_audioCodecDefault: 0
+    readonly property int cfg_audioCodecDefault: 1
     readonly property string cfg_virtualSinkNameDefault: "VirtualMicSink"
     readonly property string cfg_virtualSourceNameDefault: "VirtualMicSource"
     readonly property string cfg_virtualSinkDescriptionDefault: ""
@@ -111,36 +110,6 @@ Kirigami.FormLayout {
     QQC2.Label {
         Kirigami.FormData.isSection: true
         text: i18n("Runs immediately, without opening the popup. Right-click still opens the normal \"Configure/Remove\" menu.")
-        wrapMode: Text.WordWrap
-        font.italic: true
-    }
-
-    QQC2.ComboBox {
-        id: connectionAnimationCombo
-        Kirigami.FormData.label: i18n("Active connection animation:")
-        // Index order must match CompactView.qml's connectionAnimationStyle.
-        model: [
-            i18n("Rotating arc"),
-            i18n("Breathing ring"),
-            i18n("Double comet")
-        ]
-    }
-
-    QQC2.ComboBox {
-        id: animationModeCombo
-        Kirigami.FormData.label: i18n("Animation mode:")
-        model: Anim.AnimationOptions.modeLabels
-    }
-
-    QQC2.ComboBox {
-        id: animationFpsCombo
-        Kirigami.FormData.label: i18n("Animation frame rate:")
-        enabled: animationModeCombo.currentIndex === 1
-        model: Anim.AnimationOptions.fpsLabels
-    }
-    QQC2.Label {
-        Kirigami.FormData.isSection: true
-        text: i18n("Static mode plays one short animation when a connection starts, then stays still and costs nothing. Continuous mode keeps animating; every frame repaints the whole panel (and its blur), so keep the frame rate low. Disabled automatically when Plasma's animation speed is set to instant.")
         wrapMode: Text.WordWrap
         font.italic: true
     }

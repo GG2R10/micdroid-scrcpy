@@ -14,7 +14,7 @@
       <default>0</default>
     </entry>
     <entry name="audioCodec" type="Int">
-      <default>0</default>
+      <default>1</default>
     </entry>
     <!-- scrcpy audio buffer (ms) for wireless devices; bigger rides out
          Wi-Fi jitter (fewer audio cuts) at the cost of latency. -->

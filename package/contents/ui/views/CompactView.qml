@@ -19,7 +19,10 @@ Item {
     property int animationMode: 0
     property int animationFps: 2
 
-    readonly property bool isForwarding: forwardingState === "Forwarding"
+    // Only a live backend can be forwarding: with the service stopped (or deps
+    // missing) the last-known state is stale, and the grey badge must not
+    // share the icon with the green indicator.
+    readonly property bool isForwarding: forwardingState === "Forwarding" && serviceRunning && dependenciesOk
     readonly property color connectionColor: "#2ecc71"
 
     // Toggling Plasmoid.expanded is handled by main.qml (the actual

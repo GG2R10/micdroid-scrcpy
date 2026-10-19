@@ -36,7 +36,7 @@ Kirigami.FormLayout {
     property alias cfg_virtualSourceDescription: sourceDescriptionField.text
     property alias cfg_setAsDefaultSource: defaultSourceCheck.checked
     readonly property int cfg_audioSourceDefault: 0
-    readonly property int cfg_audioCodecDefault: 0
+    readonly property int cfg_audioCodecDefault: 1
     readonly property string cfg_virtualSinkNameDefault: "VirtualMicSink"
     readonly property string cfg_virtualSourceNameDefault: "VirtualMicSource"
     readonly property string cfg_virtualSinkDescriptionDefault: ""
@@ -84,7 +84,7 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: i18n("Audio codec:")
         model: [
             i18n("Raw PCM (best quality, more bandwidth)"),
-            i18n("Opus"),
+            i18n("Opus (recommended - low bandwidth)"),
             i18n("AAC"),
             i18n("FLAC")
         ]
