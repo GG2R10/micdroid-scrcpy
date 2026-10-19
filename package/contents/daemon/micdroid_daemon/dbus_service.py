@@ -157,16 +157,21 @@ class DaemonInterface(ServiceInterface):
         if dev is None:
             return [False, "unknown device"]
 
-        # A USB device has no network address to (re)connect to at all -
-        # adb's own notion of "connect" is a wireless-only operation. Without
-        # this check, this would fall through to `adb connect <usb-serial>`,
-        # a nonsensical call to a bare serial with no host:port in it, and
-        # come back with some unhelpful adb parse error instead of a message
-        # that actually tells the user what to do (confirmed as a real,
-        # not hypothetical, case: the panel's own moto_g14 row hitting
-        # exactly this when the cable's unplugged).
+        from . import adb_tracker
+
+        # A USB device has no network address to (re)connect to - instead,
+        # "Reconnect" means: ask adb to re-probe offline devices, and if adb
+        # says the phone is reachable, force the state machine out of
+        # whatever stuck state it's in (previously only a daemon restart
+        # could do that).
         if dev.transport == "usb":
-            message = f"{dev.name} is connected over USB - plug the cable back in, there's no network address to reconnect to"
+            adb_path = self._config.get("adbPath") or "adb"
+            await adb_tracker.adb_reconnect_offline(adb_path)
+            state = await adb_tracker.get_adb_state(adb_path, serial)
+            if await self._sm.resync(serial, state):
+                await notify(f"{dev.name} reconnected", "USB")
+                return [True, "usb device is reachable again"]
+            message = f"{dev.name} is not visible to adb (state: {state}) - plug the cable back in"
             await notify(f"{dev.name}: can't reconnect", message, urgency="critical")
             return [False, message]
 
@@ -176,6 +181,7 @@ class DaemonInterface(ServiceInterface):
         address = dev.last_address or serial
         ok, message = await adb_tracker.adb_connect(adb_path, address)
         if ok:
+            await self._sm.resync(serial, await adb_tracker.get_adb_state(adb_path, serial))
             await notify(f"{dev.name} reconnected", address)
             return [True, message]
 

@@ -1,0 +1,2 @@
+singleton AnimationOptions 1.0 AnimationOptions.qml
+AnimationController 1.0 AnimationController.qml

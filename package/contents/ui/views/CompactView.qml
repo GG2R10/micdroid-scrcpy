@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Shapes
 import org.kde.kirigami as Kirigami
+import "../anim" as Anim
 
 Item {
     id: compact
@@ -13,6 +14,10 @@ Item {
     // Purely cosmetic, set from Plasmoid.configuration.connectionAnimationStyle
     // in main.qml - the daemon has no notion of this at all.
     property int connectionAnimationStyle: 0
+    // See anim/AnimationController.qml: 0 = static (transition only on
+    // connect), 1 = continuous; fps index into AnimationOptions.fpsValues.
+    property int animationMode: 0
+    property int animationFps: 2
 
     readonly property bool isForwarding: forwardingState === "Forwarding"
     readonly property color connectionColor: "#2ecc71"
@@ -64,73 +69,73 @@ Item {
         color: compact.muted ? "#e74c3c" : themeColor
     }
 
+    Anim.AnimationController {
+        id: anim
+        active: compact.isForwarding
+        mode: compact.animationMode
+        fpsIndex: compact.animationFps
+    }
+
     // Connection-active indicator - visible while a forwarding session is
     // running. Three interchangeable styles (see main.qml/ConfigAdvanced.qml
-    // for the setting), all sharing one rotation driver so switching styles
-    // never leaves an animation needlessly running in the background.
+    // for the setting). The shapes are drawn ONCE and never change; only
+    // transforms (rotation/opacity) are animated, driven by `anim` - see
+    // anim/README.md for why (CPU re-tessellation + whole-panel repaints).
+    // At rest (static mode, or system animations off) the arcs sit centered
+    // at the top and nothing runs.
     Item {
         id: activeIndicator
         anchors.fill: parent
         visible: compact.isForwarding
 
-        property real sweepStart: 0
-        NumberAnimation on sweepStart {
-            running: compact.isForwarding && compact.connectionAnimationStyle !== 1
-            from: 0
-            to: 360
-            duration: 6000
-            loops: Animation.Infinite
-        }
-
-        property real breatheOpacity: 1
-        SequentialAnimation on breatheOpacity {
-            running: compact.isForwarding && compact.connectionAnimationStyle === 1
-            loops: Animation.Infinite
-            NumberAnimation { from: 0.25; to: 1.0; duration: 1000; easing.type: Easing.InOutSine }
-            NumberAnimation { from: 1.0; to: 0.25; duration: 1000; easing.type: Easing.InOutSine }
-        }
-
-        // Style 0 (rotating arc) and style 2 (double comet) - both are one
-        // or two short arcs sweeping around the border. The second arc's
-        // sweepAngle collapses to 0 (i.e. draws nothing) outside of style 2,
-        // rather than being toggled via a `visible` property - ShapePath
-        // isn't an Item and has no such property.
-        Shape {
+        // Styles 0 (rotating arc) and 2 (double comet).
+        Item {
+            id: rotor
             anchors.fill: parent
             visible: compact.connectionAnimationStyle !== 1
-            antialiasing: true
+            // Transition: one decelerating full turn ending at rest (360 ==
+            // 0). Continuous: constant speed, 6 s per revolution.
+            rotation: anim.continuous
+                ? anim.turns(6000) * 360
+                : 360 * anim.easeOut(anim.transitionProgress)
 
-            ShapePath {
-                strokeColor: compact.connectionColor
-                strokeWidth: Math.max(1, activeIndicator.width * 0.04)
-                fillColor: "transparent"
-                capStyle: ShapePath.RoundCap
-                PathAngleArc {
-                    centerX: activeIndicator.width / 2
-                    centerY: activeIndicator.height / 2
-                    radiusX: activeIndicator.width / 2 - activeIndicator.width * 0.08
-                    radiusY: activeIndicator.height / 2 - activeIndicator.height * 0.08
-                    startAngle: activeIndicator.sweepStart
-                    sweepAngle: compact.connectionAnimationStyle === 2 ? 50 : 80
+            Shape {
+                anchors.fill: parent
+                antialiasing: true
+
+                ShapePath {
+                    strokeColor: compact.connectionColor
+                    strokeWidth: Math.max(1, activeIndicator.width * 0.04)
+                    fillColor: "transparent"
+                    capStyle: ShapePath.RoundCap
+                    PathAngleArc {
+                        centerX: activeIndicator.width / 2
+                        centerY: activeIndicator.height / 2
+                        radiusX: activeIndicator.width / 2 - activeIndicator.width * 0.08
+                        radiusY: activeIndicator.height / 2 - activeIndicator.height * 0.08
+                        startAngle: compact.connectionAnimationStyle === 2 ? -115 : -130
+                        sweepAngle: compact.connectionAnimationStyle === 2 ? 50 : 80
+                    }
                 }
-            }
-            ShapePath {
-                strokeColor: compact.connectionColor
-                strokeWidth: Math.max(1, activeIndicator.width * 0.04)
-                fillColor: "transparent"
-                capStyle: ShapePath.RoundCap
-                PathAngleArc {
-                    centerX: activeIndicator.width / 2
-                    centerY: activeIndicator.height / 2
-                    radiusX: activeIndicator.width / 2 - activeIndicator.width * 0.08
-                    radiusY: activeIndicator.height / 2 - activeIndicator.height * 0.08
-                    startAngle: activeIndicator.sweepStart + 180
-                    sweepAngle: compact.connectionAnimationStyle === 2 ? 50 : 0
+                ShapePath {
+                    strokeColor: compact.connectionColor
+                    strokeWidth: Math.max(1, activeIndicator.width * 0.04)
+                    fillColor: "transparent"
+                    capStyle: ShapePath.RoundCap
+                    PathAngleArc {
+                        centerX: activeIndicator.width / 2
+                        centerY: activeIndicator.height / 2
+                        radiusX: activeIndicator.width / 2 - activeIndicator.width * 0.08
+                        radiusY: activeIndicator.height / 2 - activeIndicator.height * 0.08
+                        startAngle: 65
+                        // 0 outside style 2 = draws nothing (ShapePath has no `visible`).
+                        sweepAngle: compact.connectionAnimationStyle === 2 ? 50 : 0
+                    }
                 }
             }
         }
 
-        // Style 1: full ring, no rotation, breathing opacity instead.
+        // Style 1: full ring, no rotation; opacity only.
         Rectangle {
             anchors.fill: parent
             visible: compact.connectionAnimationStyle === 1
@@ -138,7 +143,10 @@ Item {
             color: "transparent"
             border.color: compact.connectionColor
             border.width: Math.max(1, width * 0.04)
-            opacity: activeIndicator.breatheOpacity
+            // Transition: fade in. Continuous: breathe 0.25..1 every 2 s.
+            opacity: anim.continuous
+                ? 0.25 + 0.75 * anim.wave(2000)
+                : anim.easeOut(anim.transitionProgress)
         }
     }
 

@@ -461,6 +461,7 @@ PlasmoidItem {
             reconnectBackoffSec: backoff.length ? backoff : [2, 5, 10, 20, 40, 60],
             adbPath: Plasmoid.configuration.adbPath,
             scrcpyPath: Plasmoid.configuration.scrcpyPath,
+            audioBufferMsWireless: Plasmoid.configuration.audioBufferMsWireless,
         }
         control.run(codePath("daemonctl.sh") + " SetConfig " + shQuote(configToGVariant(cfg)))
     }
@@ -497,6 +498,8 @@ PlasmoidItem {
         forwardingState: root.forwardingState
         muted: root.muted
         connectionAnimationStyle: Plasmoid.configuration.connectionAnimationStyle
+        animationMode: Plasmoid.configuration.animationMode
+        animationFps: Plasmoid.configuration.animationFps
         onClicked: root.expanded = !root.expanded
         onMiddleClicked: root.performQuickAction()
     }

@@ -31,12 +31,14 @@ ExitCallback = Callable[[str, ScrcpyExit], Awaitable[None]]  # (serial, exit_kin
 
 class ScrcpySession:
     def __init__(self, scrcpy_path: str, serial: str, audio_source: str,
-                 audio_codec: str, on_exit: ExitCallback) -> None:
+                 audio_codec: str, on_exit: ExitCallback,
+                 audio_buffer_ms: int | None = None) -> None:
         self._scrcpy_path = scrcpy_path
         self._serial = serial
         self._audio_source = audio_source
         self._audio_codec = audio_codec
         self._on_exit = on_exit
+        self._audio_buffer_ms = audio_buffer_ms
         self._process: asyncio.subprocess.Process | None = None
         self._watch_task: asyncio.Task | None = None
         self._stopping = False
@@ -54,6 +56,8 @@ class ScrcpySession:
             f"--audio-source={self._audio_source}",
             f"--audio-codec={self._audio_codec}",
         ]
+        if self._audio_buffer_ms:
+            args.append(f"--audio-buffer={self._audio_buffer_ms}")
         log.info("starting scrcpy: %s", " ".join(args))
         self._stopping = False
         self._process = await asyncio.create_subprocess_exec(

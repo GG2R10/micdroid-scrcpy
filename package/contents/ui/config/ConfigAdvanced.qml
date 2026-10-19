@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls as QQC2
 import org.kde.kirigami as Kirigami
+import "../anim" as Anim
 
 Kirigami.FormLayout {
     id: page
@@ -19,6 +20,12 @@ Kirigami.FormLayout {
     property alias cfg_scrcpyPath: scrcpyPathField.text
     property alias cfg_quickAction: quickActionCombo.currentIndex
     property alias cfg_connectionAnimationStyle: connectionAnimationCombo.currentIndex
+    property alias cfg_animationMode: animationModeCombo.currentIndex
+    property alias cfg_animationFps: animationFpsCombo.currentIndex
+    readonly property int cfg_animationModeDefault: 0
+    readonly property int cfg_animationFpsDefault: 2
+    property int cfg_audioBufferMsWireless: 200
+    readonly property int cfg_audioBufferMsWirelessDefault: 200
     readonly property bool cfg_autoStartOnKnownDeviceDefault: false
     readonly property int cfg_probeIntervalSecDefault: 15
     readonly property int cfg_maxReconnectAttemptsDefault: 5
@@ -117,5 +124,24 @@ Kirigami.FormLayout {
             i18n("Breathing ring"),
             i18n("Double comet")
         ]
+    }
+
+    QQC2.ComboBox {
+        id: animationModeCombo
+        Kirigami.FormData.label: i18n("Animation mode:")
+        model: Anim.AnimationOptions.modeLabels
+    }
+
+    QQC2.ComboBox {
+        id: animationFpsCombo
+        Kirigami.FormData.label: i18n("Animation frame rate:")
+        enabled: animationModeCombo.currentIndex === 1
+        model: Anim.AnimationOptions.fpsLabels
+    }
+    QQC2.Label {
+        Kirigami.FormData.isSection: true
+        text: i18n("Static mode plays one short animation when a connection starts, then stays still and costs nothing. Continuous mode keeps animating; every frame repaints the whole panel (and its blur), so keep the frame rate low. Disabled automatically when Plasma's animation speed is set to instant.")
+        wrapMode: Text.WordWrap
+        font.italic: true
     }
 }

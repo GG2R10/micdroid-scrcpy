@@ -24,6 +24,12 @@ Kirigami.FormLayout {
     // reliably enable Apply.
     property alias cfg_audioSource: audioSourceCombo.currentIndex
     property alias cfg_audioCodec: audioCodecCombo.currentIndex
+    property alias cfg_audioBufferMsWireless: bufferSpin.value
+    readonly property int cfg_audioBufferMsWirelessDefault: 200
+    property int cfg_animationMode: 0
+    property int cfg_animationFps: 2
+    readonly property int cfg_animationModeDefault: 0
+    readonly property int cfg_animationFpsDefault: 2
     property alias cfg_virtualSinkName: sinkField.text
     property alias cfg_virtualSourceName: sourceField.text
     property alias cfg_virtualSinkDescription: sinkDescriptionField.text
@@ -82,6 +88,20 @@ Kirigami.FormLayout {
             i18n("AAC"),
             i18n("FLAC")
         ]
+    }
+
+    QQC2.SpinBox {
+        id: bufferSpin
+        Kirigami.FormData.label: i18n("Wireless audio buffer (ms):")
+        from: 20
+        to: 1000
+        stepSize: 50
+    }
+    QQC2.Label {
+        Kirigami.FormData.isSection: true
+        text: i18n("Larger values smooth over Wi-Fi jitter (fewer audio cuts) at the cost of added latency. USB always uses scrcpy's low-latency default. Applies the next time forwarding starts.")
+        wrapMode: Text.WordWrap
+        font.italic: true
     }
 
     QQC2.TextField {

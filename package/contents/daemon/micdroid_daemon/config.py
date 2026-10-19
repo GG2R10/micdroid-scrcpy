@@ -22,6 +22,11 @@ DEFAULTS: dict[str, Any] = {
     # scrcpy audio options - see `scrcpy --list-audio-sources` / doc/audio.md
     "audioSource": "mic",
     "audioCodec": "raw",
+    # scrcpy --audio-buffer (ms). scrcpy's own default (50) is tuned for USB;
+    # wireless adb delivers audio in bursts and underruns (audible cuts)
+    # unless the buffer rides out the jitter. Separate values per transport.
+    "audioBufferMsUsb": 50,
+    "audioBufferMsWireless": 200,
     # PipeWire loopback node names. Default matches the user's own pre-existing
     # static loopback config so both can target the same virtual mic.
     "virtualSinkName": "VirtualMicSink",

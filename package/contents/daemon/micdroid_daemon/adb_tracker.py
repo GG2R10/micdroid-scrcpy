@@ -210,6 +210,33 @@ async def adb_pair(adb_path: str, address: str, code: str, timeout: float = 15.0
     return text.lower().startswith("successfully paired"), text
 
 
+async def adb_reconnect_offline(adb_path: str, timeout: float = 5.0) -> None:
+    """`adb reconnect offline` makes the server re-probe devices stuck in the
+    offline state (typical after a USB cable blip). Best effort.
+    """
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            adb_path, "reconnect", "offline",
+            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+        )
+        await asyncio.wait_for(proc.wait(), timeout=timeout)
+    except (asyncio.TimeoutError, OSError):
+        pass
+
+
+async def get_adb_state(adb_path: str, serial: str, timeout: float = 4.0) -> str:
+    """Returns `adb -s serial get-state` ("device", "offline", ...) or "gone"."""
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            adb_path, "-s", serial, "get-state",
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL,
+        )
+        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except (asyncio.TimeoutError, OSError):
+        return "gone"
+    return stdout.decode(errors="replace").strip() or "gone"
+
+
 async def adb_disconnect(adb_path: str, serial: str) -> None:
     proc = await asyncio.create_subprocess_exec(
         adb_path, "disconnect", serial,

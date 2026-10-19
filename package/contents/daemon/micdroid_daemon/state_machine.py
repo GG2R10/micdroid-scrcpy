@@ -179,6 +179,8 @@ class ForwardingStateMachine:
             self._scrcpy_path(), serial,
             self._config.get("audioSource"), self._config.get("audioCodec"),
             on_exit=self._on_scrcpy_exit,
+            audio_buffer_ms=self._config.get(
+                "audioBufferMsWireless" if ":" in serial else "audioBufferMsUsb"),
         )
         try:
             await self._session.start()
@@ -293,11 +295,25 @@ class ForwardingStateMachine:
                               "scrcpy could not establish the initial connection")
             await self._teardown_active_session()
             await self._set_state(dev, "ConnectedIdle")
-        # NORMAL/UNKNOWN: nothing to do, stop_forwarding()/teardown already handled it
+        else:
+            # Exit 0 / unknown code without us asking for it: scrcpy died on
+            # its own (e.g. a USB cable pull it didn't classify as exit 2).
+            # Ignoring it left the state stuck on Forwarding with no scrcpy.
+            log.warning("scrcpy for %s exited unexpectedly (%s) - reconnecting", serial, kind.name)
+            await self._enter_reconnecting(dev)
 
     async def _enter_reconnecting(self, dev: Device) -> None:
+        if self._reconnect_task is not None:
+            # Already reconnecting (e.g. scrcpy's exit and track-devices both
+            # reporting the same drop) - a second loop would orphan the first
+            # and later tear down a healthy resumed session when it exhausts.
+            return
         if self._probe_task is not None:
-            self._probe_task.cancel()
+            # _probe_loop itself calls this on its second failed probe; the
+            # task must not cancel itself (the next await here would raise
+            # CancelledError and leave the state stuck in DegradedProbing).
+            if self._probe_task is not asyncio.current_task():
+                self._probe_task.cancel()
             self._probe_task = None
         if self._routing_watch_task is not None:
             # Otherwise start_forwarding() below (on a successful reconnect)
@@ -335,8 +351,14 @@ class ForwardingStateMachine:
                 self._reconnect_attempt += 1
 
                 address = dev.last_address
-                ok, message = (False, "no known address") if not address else \
-                    await adb_tracker.adb_connect(adb_path, address)
+                if not address:
+                    # USB: nothing to `adb connect` to. Ask the adb server to
+                    # re-probe offline devices; recovery itself still arrives
+                    # via track-devices -> _on_device_reachable.
+                    await adb_tracker.adb_reconnect_offline(adb_path)
+                    ok, message = False, "no known address (usb)"
+                else:
+                    ok, message = await adb_tracker.adb_connect(adb_path, address)
 
                 if not ok and not dev.wifi_adb2_capable:
                     candidates = await adb_tracker.resolve_ip_via_avahi()
@@ -420,6 +442,23 @@ class ForwardingStateMachine:
             self._probe_task = None
         self._cancel_reconnect()
         await self._release_forwarding_resources()
+
+    async def resync(self, serial: str, adb_state: str) -> bool:
+        """Force a device stuck in a non-idle state back to ConnectedIdle
+        when adb says it is reachable. Used by the "Reconnect" action, so it
+        can recover from any wedged state without restarting the daemon.
+        Returns True if the device ended up ConnectedIdle/Forwarding.
+        """
+        dev = self._roster.get(serial)
+        if dev is None or adb_state != "device":
+            return False
+        if dev.forwarding_state in ("ConnectedIdle", "Forwarding"):
+            return True
+        if serial == self._active_serial:
+            await self._teardown_active_session()
+        await self._set_state(dev, "ConnectedIdle")
+        self._roster.save()
+        return True
 
     async def shutdown(self) -> None:
         """Called on daemon stop - don't leave scrcpy/pw-loopback orphaned."""
