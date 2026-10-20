@@ -93,5 +93,9 @@
     <entry name="animationFps" type="Int">
       <default>2</default>
     </entry>
+    <!-- Index into AnimationOptions.hoverPresets: Pop/Soft/Lift/Wiggle/None. -->
+    <entry name="hoverStyle" type="Int">
+      <default>0</default>
+    </entry>
   </group>
 </kcfg>

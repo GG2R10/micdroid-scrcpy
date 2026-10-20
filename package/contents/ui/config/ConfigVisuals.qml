@@ -13,6 +13,8 @@ Kirigami.FormLayout {
     property alias cfg_connectionAnimationStyle: styleCombo.currentIndex
     property alias cfg_animationMode: modeCombo.currentIndex
     property alias cfg_animationFps: fpsCombo.currentIndex
+    property alias cfg_hoverStyle: hoverCombo.currentIndex
+    readonly property int cfg_hoverStyleDefault: 0
     readonly property int cfg_connectionAnimationStyleDefault: 0
     readonly property int cfg_animationModeDefault: 0
     readonly property int cfg_animationFpsDefault: 2
@@ -71,6 +73,13 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: i18n("Frame rate:")
         enabled: modeCombo.currentIndex === 1
         model: Anim.AnimationOptions.fpsLabels
+    }
+
+    QQC2.ComboBox {
+        id: hoverCombo
+        Layout.minimumWidth: Kirigami.Units.gridUnit * 18
+        Kirigami.FormData.label: i18n("Hover / click effect:")
+        model: Anim.AnimationOptions.hoverStyleLabels
     }
 
     QQC2.Label {

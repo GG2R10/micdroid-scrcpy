@@ -500,6 +500,7 @@ PlasmoidItem {
         connectionAnimationStyle: Plasmoid.configuration.connectionAnimationStyle
         animationMode: Plasmoid.configuration.animationMode
         animationFps: Plasmoid.configuration.animationFps
+        hoverStyle: Plasmoid.configuration.hoverStyle
         onClicked: root.expanded = !root.expanded
         onMiddleClicked: root.performQuickAction()
     }

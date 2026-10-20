@@ -21,6 +21,8 @@ Item {
     // connect), 1 = continuous; fps index into AnimationOptions.fpsValues.
     property int animationMode: 0
     property int animationFps: 2
+    // Index into AnimationOptions.hoverPresets (hover/press feedback).
+    property int hoverStyle: 0
 
     // Only a live backend can be forwarding: with the service stopped (or deps
     // missing) the last-known state is stale, and the grey badge must not
@@ -48,6 +50,15 @@ Item {
         }
     }
 
+    // Hover/press feedback (pill behind + scale/tilt on the icon). The
+    // MouseArea below already owns the mouse, so it drives this instead.
+    Anim.HoverFeedback {
+        id: feedback
+        anchors.fill: parent
+        style: compact.hoverStyle
+        useMouseArea: false
+    }
+
     // The source SVG is solid white/near-white - invisible on a light panel
     // theme, and Kirigami.Icon's isMask/color tinting turned out not to
     // apply reliably for a plain file URL inside the panel (the custom
@@ -63,6 +74,8 @@ Item {
         fillMode: Image.PreserveAspectFit
         smooth: true
         mipmap: true
+        scale: feedback.scaleFactor
+        rotation: feedback.tilt
 
         // Mute indicator: red tint while muted. Independent of the
         // connection indicator (separate channel) so both can show at once.
@@ -194,6 +207,9 @@ Item {
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+        hoverEnabled: true
+        onContainsMouseChanged: feedback.hovered = containsMouse
+        onPressedChanged: feedback.pressed = pressed
         onClicked: (mouse) => {
             if (mouse.button === Qt.MiddleButton) {
                 compact.middleClicked()

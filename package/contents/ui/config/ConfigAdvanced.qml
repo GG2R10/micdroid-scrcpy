@@ -22,6 +22,8 @@ Kirigami.FormLayout {
     property int cfg_connectionAnimationStyle: 0
     property int cfg_animationMode: 0
     property int cfg_animationFps: 2
+    property int cfg_hoverStyle: 0
+    readonly property int cfg_hoverStyleDefault: 0
     readonly property int cfg_animationModeDefault: 0
     readonly property int cfg_animationFpsDefault: 2
     property int cfg_audioBufferMsWireless: 200
