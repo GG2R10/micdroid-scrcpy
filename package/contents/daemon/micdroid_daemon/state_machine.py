@@ -181,6 +181,7 @@ class ForwardingStateMachine:
             on_exit=self._on_scrcpy_exit,
             audio_buffer_ms=self._config.get(
                 "audioBufferMsWireless" if ":" in serial else "audioBufferMsUsb"),
+            target_sink=self._config.get("virtualSinkName"),
         )
         try:
             await self._session.start()
